@@ -15,11 +15,17 @@ class Converters {
     fun toType(value: String): TransactionType = TransactionType.valueOf(value)
 }
 
-@Database(entities = [TransactionEntity::class], version = 1, exportSchema = false)
+@Database(
+    entities = [TransactionEntity::class, BudgetEntity::class, AppSettingsEntity::class],
+    version = 2,
+    exportSchema = false
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun transactionDao(): TransactionDao
+    abstract fun budgetDao(): BudgetDao
+    abstract fun appSettingsDao(): AppSettingsDao
 
     companion object {
         @Volatile
@@ -31,7 +37,11 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "dhanapala.db"
-                ).build().also { INSTANCE = it }
+                )
+                    // Pre-1.0, no shipped schema to preserve yet — fine to
+                    // recreate the DB on schema changes until first real release.
+                    .fallbackToDestructiveMigration()
+                    .build().also { INSTANCE = it }
             }
     }
 }
