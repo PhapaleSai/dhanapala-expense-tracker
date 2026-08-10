@@ -29,6 +29,9 @@ class FakeTransactionDao : TransactionDao {
 
     override fun observeBetween(startMillis: Long, endMillis: Long) = state
 
+    override suspend fun getBetween(startMillis: Long, endMillis: Long): List<TransactionEntity> =
+        store.values.filter { it.dateMillis in startMillis..endMillis }.sortedByDescending { it.dateMillis }
+
     override suspend fun updateCategory(id: Long, category: String) {
         store[id]?.let { store[id] = it.copy(category = category) }
         publish()

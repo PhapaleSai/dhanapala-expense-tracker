@@ -11,7 +11,8 @@ data class ScanResult(
     val scanned: Int,
     val inserted: Int,
     val duplicates: Int,
-    val notTransactions: Int
+    val notTransactions: Int,
+    val insertedTransactions: List<TransactionEntity> = emptyList()
 )
 
 /**
@@ -30,9 +31,9 @@ class TransactionRepository(
         dao.observeBetween(startMillis, endMillis)
 
     suspend fun scanMessages(messages: List<RawSms>): ScanResult {
-        var inserted = 0
         var duplicates = 0
         var notTransactions = 0
+        val insertedTransactions = mutableListOf<TransactionEntity>()
 
         for (sms in messages) {
             val parsed = parser.parse(sms)
@@ -54,16 +55,20 @@ class TransactionRepository(
                 createdAt = System.currentTimeMillis()
             )
             val rowId = dao.insert(entity)
-            if (rowId != -1L) inserted++ else duplicates++
+            if (rowId != -1L) insertedTransactions.add(entity.copy(id = rowId)) else duplicates++
         }
 
         return ScanResult(
             scanned = messages.size,
-            inserted = inserted,
+            inserted = insertedTransactions.size,
             duplicates = duplicates,
-            notTransactions = notTransactions
+            notTransactions = notTransactions,
+            insertedTransactions = insertedTransactions
         )
     }
+
+    suspend fun getBetweenOnce(startMillis: Long, endMillis: Long): List<TransactionEntity> =
+        dao.getBetween(startMillis, endMillis)
 
     suspend fun addManual(entity: TransactionEntity): Long = dao.insert(entity)
 

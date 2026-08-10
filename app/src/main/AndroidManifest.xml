@@ -3,6 +3,7 @@
 
     <!-- Read-only: this app never sends, edits, or deletes SMS. -->
     <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".DhanapalaApplication"
