@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -14,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier) {
+fun HomeScreen(modifier: Modifier = Modifier, onOpenMessages: () -> Unit = {}) {
     Scaffold { innerPadding: PaddingValues ->
         Column(
             modifier = modifier
@@ -32,17 +34,21 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            Card(modifier = Modifier.fillMaxSize()) {
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
                         text = "Dashboard coming soon",
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "Phase 1 checkpoint: Compose + Material 3 + Navigation + Room are wired up.",
+                        text = "Phase 2 checkpoint: read-only SMS access is wired up.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
+            }
+
+            Button(onClick = onOpenMessages) {
+                Text("View SMS (read-only)")
             }
         }
     }
