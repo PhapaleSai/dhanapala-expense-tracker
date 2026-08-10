@@ -27,6 +27,8 @@ class FakeTransactionDao : TransactionDao {
 
     override fun observeAll(): StateFlow<List<TransactionEntity>> = state
 
+    override suspend fun getAll(): List<TransactionEntity> = store.values.sortedByDescending { it.dateMillis }
+
     override fun observeBetween(startMillis: Long, endMillis: Long) = state
 
     override suspend fun getBetween(startMillis: Long, endMillis: Long): List<TransactionEntity> =

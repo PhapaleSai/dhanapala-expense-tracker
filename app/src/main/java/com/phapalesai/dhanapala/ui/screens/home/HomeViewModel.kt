@@ -94,6 +94,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { budgetRepo.setBudget(monthKey, amount) }
     }
 
+    fun setUserName(name: String) {
+        viewModelScope.launch {
+            val current = budgetRepo.observeSettings().first()
+            budgetRepo.updateSettings(current.copy(userName = name.trim()))
+        }
+    }
+
     private suspend fun maybeNotify(result: ScanResult) {
         val settings = budgetRepo.observeSettings().first()
         if (!settings.notificationsEnabled) return

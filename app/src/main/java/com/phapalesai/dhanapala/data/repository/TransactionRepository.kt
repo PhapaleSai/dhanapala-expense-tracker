@@ -58,6 +58,8 @@ class TransactionRepository(
             if (rowId != -1L) insertedTransactions.add(entity.copy(id = rowId)) else duplicates++
         }
 
+        recategorizeAll()
+
         return ScanResult(
             scanned = messages.size,
             inserted = insertedTransactions.size,
@@ -77,4 +79,22 @@ class TransactionRepository(
     suspend fun delete(transaction: TransactionEntity) = dao.delete(transaction)
 
     suspend fun deleteAll() = dao.deleteAll()
+
+    /**
+     * Re-runs category detection against every stored SMS-derived transaction.
+     * Needed because CategoryGuesser's keyword dictionary keeps growing —
+     * transactions saved before a dictionary update would otherwise be stuck
+     * with a stale category forever. Manual entries are left alone since the
+     * user chose that category on purpose.
+     */
+    suspend fun recategorizeAll() {
+        for (tx in dao.getAll()) {
+            if (tx.isManual) continue
+            val body = tx.description ?: continue
+            val freshCategory = CategoryGuesser.guess(body, tx.type)
+            if (freshCategory != tx.category) {
+                dao.updateCategory(tx.id, freshCategory)
+            }
+        }
+    }
 }

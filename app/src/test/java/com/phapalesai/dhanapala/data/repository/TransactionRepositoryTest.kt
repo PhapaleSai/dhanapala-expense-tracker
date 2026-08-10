@@ -53,4 +53,54 @@ class TransactionRepositoryTest {
         assertEquals(1, result.inserted)
         assertEquals(1, result.duplicates)
     }
+
+    @Test
+    fun `rescanning recategorizes existing transactions with the current keyword dictionary`() = runBlocking {
+        val dao = FakeTransactionDao()
+        val repo = TransactionRepository(dao)
+        val staleFoodOrder = com.phapalesai.dhanapala.data.local.TransactionEntity(
+            amount = 250.0,
+            type = com.phapalesai.dhanapala.data.local.TransactionType.DEBIT,
+            dateMillis = 1_700_000_000_000,
+            sender = "AX-BANK",
+            merchant = null,
+            description = "Rs. 250 debited for SWIGGY order via UPI.",
+            sourceSmsId = "99",
+            dedupeHash = "stale-1",
+            category = "Anonymous Expenses",
+            isManual = false,
+            createdAt = 0
+        )
+        dao.insert(staleFoodOrder)
+
+        repo.scanMessages(emptyList())
+
+        val recategorized = dao.getAll().first { it.dedupeHash == "stale-1" }
+        assertEquals("Food", recategorized.category)
+    }
+
+    @Test
+    fun `manual entries are never recategorized`() = runBlocking {
+        val dao = FakeTransactionDao()
+        val repo = TransactionRepository(dao)
+        val manualEntry = com.phapalesai.dhanapala.data.local.TransactionEntity(
+            amount = 100.0,
+            type = com.phapalesai.dhanapala.data.local.TransactionType.DEBIT,
+            dateMillis = 1_700_000_000_000,
+            sender = null,
+            merchant = null,
+            description = "swiggy cash order",
+            sourceSmsId = null,
+            dedupeHash = "manual-1",
+            category = "Entertainment",
+            isManual = true,
+            createdAt = 0
+        )
+        dao.insert(manualEntry)
+
+        repo.scanMessages(emptyList())
+
+        val stillManual = dao.getAll().first { it.dedupeHash == "manual-1" }
+        assertEquals("Entertainment", stillManual.category)
+    }
 }

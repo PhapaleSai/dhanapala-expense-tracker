@@ -117,6 +117,10 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                 }
             }
 
+            if (state.settings.userName.isBlank()) {
+                NamePromptCard(onSave = viewModel::setUserName)
+            }
+
             if (!state.hasBudgetSet) {
                 SetBudgetCard(onSave = viewModel::setBudget)
             } else {
@@ -136,6 +140,29 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
             )
 
             RecentTransactionsCard(state.recentTransactions)
+        }
+    }
+}
+
+@Composable
+private fun NamePromptCard(onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf("") }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("👋 What should I call you?", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("Your name") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Button(
+                onClick = { onSave(text) },
+                enabled = text.isNotBlank()
+            ) { Text("Save") }
         }
     }
 }

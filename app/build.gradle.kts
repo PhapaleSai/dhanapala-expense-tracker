@@ -25,8 +25,8 @@ android {
         applicationId = "com.phapalesai.dhanapala"
         minSdk = 26
         targetSdk = 34
-        versionCode = 11
-        versionName = "1.0.1"
+        versionCode = 13
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
