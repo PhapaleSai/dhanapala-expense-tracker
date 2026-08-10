@@ -141,7 +141,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
             }
 
             if (!state.hasBudgetSet) {
-                SetBudgetCard(onSave = viewModel::setBudget)
+                SetBudgetCard(onSave = viewModel::setBudget, onSaveCustom = viewModel::setCustomBudget)
             } else {
                 BudgetCard(state, onEditBudget = viewModel::setBudget)
             }
@@ -245,21 +245,104 @@ private fun NamePromptCard(onSave: (String) -> Unit) {
 }
 
 @Composable
-private fun SetBudgetCard(onSave: (Double) -> Unit) {
+private fun SetBudgetCard(onSave: (Double) -> Unit, onSaveCustom: (LocalDate, LocalDate, Double) -> Unit) {
     var text by remember { mutableStateOf("") }
+    var useCustomPeriod by remember { mutableStateOf(false) }
+    var startDate by remember { mutableStateOf(LocalDate.now()) }
+    var endDate by remember { mutableStateOf(LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth())) }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Set this month's budget", style = MaterialTheme.typography.titleMedium)
+            Text("Set your budget", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it.filter { c -> c.isDigit() || c == '.' } },
-                label = { Text("Monthly budget (₹)") },
+                label = { Text("Budget (₹)") },
                 modifier = Modifier.fillMaxWidth()
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Custom date range", style = MaterialTheme.typography.bodyMedium)
+                androidx.compose.material3.Switch(checked = useCustomPeriod, onCheckedChange = { useCustomPeriod = it })
+            }
+            if (useCustomPeriod) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    DatePickerField(
+                        label = "From",
+                        date = startDate,
+                        onDateChange = { startDate = it },
+                        modifier = Modifier.weight(1f)
+                    )
+                    DatePickerField(
+                        label = "To",
+                        date = endDate,
+                        onDateChange = { endDate = it },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            } else {
+                Text(
+                    "Defaults to this calendar month.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Button(
-                onClick = { text.toDoubleOrNull()?.let(onSave) },
-                enabled = text.toDoubleOrNull() != null
+                onClick = {
+                    val amount = text.toDoubleOrNull() ?: return@Button
+                    if (useCustomPeriod) onSaveCustom(startDate, endDate, amount) else onSave(amount)
+                },
+                enabled = text.toDoubleOrNull() != null && (!useCustomPeriod || !endDate.isBefore(startDate))
             ) { Text("Save budget") }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun DatePickerField(
+    label: String,
+    date: LocalDate,
+    onDateChange: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showPicker by remember { mutableStateOf(false) }
+    val formatter = remember { java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy") }
+
+    androidx.compose.material3.OutlinedButton(onClick = { showPicker = true }, modifier = modifier) {
+        Column {
+            Text(label, style = MaterialTheme.typography.labelSmall)
+            Text(date.format(formatter), style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+
+    if (showPicker) {
+        val state = androidx.compose.material3.rememberDatePickerState(
+            initialSelectedDateMillis = date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        )
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    state.selectedDateMillis?.let { millis ->
+                        onDateChange(
+                            java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                        )
+                    }
+                    showPicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showPicker = false }) { Text("Cancel") }
+            }
+        ) {
+            androidx.compose.material3.DatePicker(state = state)
         }
     }
 }

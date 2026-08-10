@@ -4,12 +4,16 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.phapalesai.dhanapala.DhanapalaApplication
+import com.phapalesai.dhanapala.data.local.BudgetEntity
+import com.phapalesai.dhanapala.data.local.TransactionEntity
 import com.phapalesai.dhanapala.data.local.TransactionType
+import com.phapalesai.dhanapala.data.parser.CategoryGuesser
 import com.phapalesai.dhanapala.data.repository.ScanResult
 import com.phapalesai.dhanapala.domain.BhaiMessageEngine
 import com.phapalesai.dhanapala.domain.BudgetCalculator
-import com.phapalesai.dhanapala.domain.BudgetNotifyTier
 import com.phapalesai.dhanapala.domain.BudgetNotificationDecider
+import com.phapalesai.dhanapala.domain.BudgetNotifyTier
+import com.phapalesai.dhanapala.domain.MoneySavingTips
 import com.phapalesai.dhanapala.domain.roastLanguageEnum
 import com.phapalesai.dhanapala.domain.roastLevelEnum
 import com.phapalesai.dhanapala.util.DateUtils
@@ -18,11 +22,16 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app = application as DhanapalaApplication
@@ -31,22 +40,37 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val smsReader = app.smsReader
     private val notifier = app.notifier
 
-    private val monthKey = DateUtils.monthKey()
-    private val monthRange = DateUtils.monthRangeMillis(YearMonth.now())
+    private val zone = ZoneId.systemDefault()
+    private val nowMillis = System.currentTimeMillis()
 
     private val _isScanning = MutableStateFlow(false)
     private val _lastScanResult = MutableStateFlow<ScanResult?>(null)
     private val _hasSmsPermission = MutableStateFlow(false)
     private val scanState = combine(_isScanning, _lastScanResult) { scanning, result -> scanning to result }
 
+    private val activeBudget = budgetRepo.observeActive(nowMillis)
+
+    private val periodTransactions = activeBudget.flatMapLatest { budget ->
+        val range = budget?.let { it.startDateMillis to it.endDateMillis }
+            ?: DateUtils.monthRangeMillis(YearMonth.now()).let { it.first to it.last }
+        transactionRepo.observeBetween(range.first, range.second)
+    }
+
     val uiState: StateFlow<HomeUiState> = combine(
-        transactionRepo.observeBetween(monthRange.first, monthRange.last),
-        budgetRepo.observeBudget(monthKey),
+        periodTransactions,
+        activeBudget,
         budgetRepo.observeSettings(),
         scanState,
         _hasSmsPermission
     ) { transactions, budgetEntity, settings, (isScanning, lastScanResult), hasSmsPermission ->
-        val summary = BudgetCalculator.calculate(budgetEntity?.amount ?: 0.0, transactions)
+        val periodEnd = budgetEntity?.let {
+            java.time.Instant.ofEpochMilli(it.endDateMillis).atZone(zone).toLocalDate()
+        }
+        val summary = if (periodEnd != null) {
+            BudgetCalculator.calculate(budgetEntity.amount, transactions, periodEnd = periodEnd)
+        } else {
+            BudgetCalculator.calculate(0.0, transactions)
+        }
         HomeUiState(
             summary = summary,
             recentTransactions = transactions.take(5),
@@ -64,14 +88,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
-    private fun moneyTipFor(transactions: List<com.phapalesai.dhanapala.data.local.TransactionEntity>): String {
+    private fun moneyTipFor(transactions: List<TransactionEntity>): String {
         val isFoodDeliveryContext = transactions.take(5).any { tx ->
             tx.type == TransactionType.DEBIT &&
-                (tx.description?.let { com.phapalesai.dhanapala.data.parser.CategoryGuesser.isFoodDelivery(it) } == true)
+                (tx.description?.let { CategoryGuesser.isFoodDelivery(it) } == true)
         }
-        val today = java.time.LocalDate.now().toEpochDay()
+        val today = LocalDate.now().toEpochDay()
         val seed = today + if (isFoodDeliveryContext) 1_000_000 else 0
-        return com.phapalesai.dhanapala.domain.MoneySavingTips.random(isFoodDeliveryContext, kotlin.random.Random(seed))
+        return MoneySavingTips.random(isFoodDeliveryContext, Random(seed))
     }
 
     fun onSmsPermissionResult(granted: Boolean) {
@@ -90,8 +114,26 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Sets the amount for the currently active period (or creates a calendar-month one if none exists yet). */
     fun setBudget(amount: Double) {
-        viewModelScope.launch { budgetRepo.setBudget(monthKey, amount) }
+        viewModelScope.launch {
+            val active = budgetRepo.getActiveOnce(nowMillis)
+            if (active != null) {
+                budgetRepo.setBudget(active.startDateMillis, active.endDateMillis, amount, existingId = active.id)
+            } else {
+                val range = DateUtils.monthRangeMillis(YearMonth.now())
+                budgetRepo.setBudget(range.first, range.last, amount)
+            }
+        }
+    }
+
+    /** Creates a brand new budget for an explicit custom date range. */
+    fun setCustomBudget(startDate: LocalDate, endDate: LocalDate, amount: Double) {
+        viewModelScope.launch {
+            val start = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
+            val end = endDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+            budgetRepo.setBudget(start, end, amount)
+        }
     }
 
     fun setUserName(name: String) {
@@ -124,10 +166,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        val budgetEntity = budgetRepo.getBudgetOnce(monthKey) ?: return
+        val budgetEntity: BudgetEntity = budgetRepo.getActiveOnce(nowMillis) ?: return
         if (budgetEntity.amount <= 0) return
-        val monthTransactions = transactionRepo.getBetweenOnce(monthRange.first, monthRange.last)
-        val summary = BudgetCalculator.calculate(budgetEntity.amount, monthTransactions)
+        val periodTransactions = transactionRepo.getBetweenOnce(budgetEntity.startDateMillis, budgetEntity.endDateMillis)
+        val periodEnd = java.time.Instant.ofEpochMilli(budgetEntity.endDateMillis).atZone(zone).toLocalDate()
+        val summary = BudgetCalculator.calculate(budgetEntity.amount, periodTransactions, periodEnd = periodEnd)
         val tier = BudgetNotificationDecider.decide(
             summary.percentUsed,
             budgetEntity.notified80,
@@ -136,11 +179,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         when (tier) {
             BudgetNotifyTier.EXCEEDED -> {
                 notifier.notifyBudgetExceeded()
-                budgetRepo.markNotifiedExceeded(monthKey)
+                budgetRepo.markNotifiedExceeded(budgetEntity.id)
             }
             BudgetNotifyTier.EIGHTY_PERCENT -> {
                 notifier.notifyBudgetThreshold(summary.percentUsed.roundToInt(), summary.remaining)
-                budgetRepo.markNotified80(monthKey)
+                budgetRepo.markNotified80(budgetEntity.id)
             }
             BudgetNotifyTier.NONE -> Unit
         }

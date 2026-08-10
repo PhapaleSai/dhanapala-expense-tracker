@@ -11,15 +11,24 @@ class BudgetRepository(
     private val budgetDao: BudgetDao,
     private val settingsDao: AppSettingsDao
 ) {
-    fun observeBudget(month: String): Flow<BudgetEntity?> = budgetDao.observeForMonth(month)
+    fun observeActive(nowMillis: Long): Flow<BudgetEntity?> = budgetDao.observeActive(nowMillis)
 
-    suspend fun getBudgetOnce(month: String): BudgetEntity? = budgetDao.getForMonth(month)
+    suspend fun getActiveOnce(nowMillis: Long): BudgetEntity? = budgetDao.getActiveOnce(nowMillis)
 
-    suspend fun setBudget(month: String, amount: Double) = budgetDao.upsert(BudgetEntity(month, amount))
+    /** Creates a new budget period, or replaces the currently active one's amount (same id, dates, resets notified flags). */
+    suspend fun setBudget(startDateMillis: Long, endDateMillis: Long, amount: Double, existingId: Long? = null): Long =
+        budgetDao.upsert(
+            BudgetEntity(
+                id = existingId ?: 0,
+                startDateMillis = startDateMillis,
+                endDateMillis = endDateMillis,
+                amount = amount
+            )
+        )
 
-    suspend fun markNotified80(month: String) = budgetDao.setNotified80(month, true)
+    suspend fun markNotified80(id: Long) = budgetDao.setNotified80(id, true)
 
-    suspend fun markNotifiedExceeded(month: String) = budgetDao.setNotifiedExceeded(month, true)
+    suspend fun markNotifiedExceeded(id: Long) = budgetDao.setNotifiedExceeded(id, true)
 
     fun observeSettings(): Flow<AppSettingsEntity> = settingsDao.observe().map { it ?: AppSettingsEntity() }
 

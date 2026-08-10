@@ -32,7 +32,7 @@ class BudgetCalculatorTest {
             tx(200.0, TransactionType.DEBIT, today)
         )
 
-        val summary = BudgetCalculator.calculate(budget = 5000.0, monthTransactions = transactions, today = today)
+        val summary = BudgetCalculator.calculate(budget = 5000.0, periodTransactions = transactions, today = today)
 
         assertEquals(1000.0, summary.spent, 0.001)
         assertEquals(2000.0, summary.credited, 0.001)
@@ -44,7 +44,7 @@ class BudgetCalculatorTest {
         val today = LocalDate.of(2026, 8, 10) // August has 31 days, so 22 days remain including today
         val transactions = listOf(tx(1760.0, TransactionType.DEBIT, today))
 
-        val summary = BudgetCalculator.calculate(budget = 5000.0, monthTransactions = transactions, today = today)
+        val summary = BudgetCalculator.calculate(budget = 5000.0, periodTransactions = transactions, today = today)
 
         assertEquals(35.2, summary.percentUsed, 0.01)
         assertEquals(22, summary.daysRemainingInMonth)
@@ -56,7 +56,7 @@ class BudgetCalculatorTest {
         val today = LocalDate.of(2026, 8, 10)
         val transactions = listOf(tx(6000.0, TransactionType.DEBIT, today))
 
-        val summary = BudgetCalculator.calculate(budget = 5000.0, monthTransactions = transactions, today = today)
+        val summary = BudgetCalculator.calculate(budget = 5000.0, periodTransactions = transactions, today = today)
 
         assertEquals(-1000.0, summary.remaining, 0.001)
         assertEquals(0.0, summary.recommendedDailySpend, 0.001)
@@ -71,8 +71,26 @@ class BudgetCalculatorTest {
             tx(999.0, TransactionType.DEBIT, yesterday)
         )
 
-        val summary = BudgetCalculator.calculate(budget = 5000.0, monthTransactions = transactions, today = today)
+        val summary = BudgetCalculator.calculate(budget = 5000.0, periodTransactions = transactions, today = today)
 
         assertEquals(430.0, summary.todaySpending, 0.001)
+    }
+
+    @Test
+    fun `custom period end overrides the calendar-month default`() {
+        // Custom period: 10 Aug - 20 Aug. Today is 10 Aug, so 11 days remain including today.
+        val today = LocalDate.of(2026, 8, 10)
+        val periodEnd = LocalDate.of(2026, 8, 20)
+        val transactions = listOf(tx(500.0, TransactionType.DEBIT, today))
+
+        val summary = BudgetCalculator.calculate(
+            budget = 1100.0,
+            periodTransactions = transactions,
+            today = today,
+            periodEnd = periodEnd
+        )
+
+        assertEquals(11, summary.daysRemainingInMonth)
+        assertEquals(600.0 / 11.0, summary.recommendedDailySpend, 0.01)
     }
 }

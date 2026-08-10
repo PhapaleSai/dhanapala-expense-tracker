@@ -5,8 +5,6 @@ import java.time.YearMonth
 import java.time.ZoneId
 
 object DateUtils {
-    fun monthKey(month: YearMonth = YearMonth.now()): String = month.toString() // e.g. "2026-08"
-
     fun monthRangeMillis(month: YearMonth, zone: ZoneId = ZoneId.systemDefault()): LongRange {
         val start = month.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val end = month.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1

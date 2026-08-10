@@ -8,18 +8,18 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface BudgetDao {
-    @Query("SELECT * FROM budgets WHERE month = :month")
-    fun observeForMonth(month: String): Flow<BudgetEntity?>
+    @Query("SELECT * FROM budgets WHERE :nowMillis BETWEEN startDateMillis AND endDateMillis ORDER BY startDateMillis DESC LIMIT 1")
+    fun observeActive(nowMillis: Long): Flow<BudgetEntity?>
 
-    @Query("SELECT * FROM budgets WHERE month = :month")
-    suspend fun getForMonth(month: String): BudgetEntity?
+    @Query("SELECT * FROM budgets WHERE :nowMillis BETWEEN startDateMillis AND endDateMillis ORDER BY startDateMillis DESC LIMIT 1")
+    suspend fun getActiveOnce(nowMillis: Long): BudgetEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(budget: BudgetEntity)
+    suspend fun upsert(budget: BudgetEntity): Long
 
-    @Query("UPDATE budgets SET notified80 = :value WHERE month = :month")
-    suspend fun setNotified80(month: String, value: Boolean)
+    @Query("UPDATE budgets SET notified80 = :value WHERE id = :id")
+    suspend fun setNotified80(id: Long, value: Boolean)
 
-    @Query("UPDATE budgets SET notifiedExceeded = :value WHERE month = :month")
-    suspend fun setNotifiedExceeded(month: String, value: Boolean)
+    @Query("UPDATE budgets SET notifiedExceeded = :value WHERE id = :id")
+    suspend fun setNotifiedExceeded(id: Long, value: Boolean)
 }

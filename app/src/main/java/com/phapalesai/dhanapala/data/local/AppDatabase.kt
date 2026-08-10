@@ -30,9 +30,54 @@ val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
     }
 }
 
+/**
+ * Budgets move from being keyed by calendar month ("2026-08") to an explicit
+ * start/end date range, so the user can set a budget for any custom period.
+ * Existing month-keyed rows are converted to that month's first/last day so
+ * no budget data is lost.
+ */
+val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE budgets_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                startDateMillis INTEGER NOT NULL,
+                endDateMillis INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                notified80 INTEGER NOT NULL DEFAULT 0,
+                notifiedExceeded INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent()
+        )
+
+        val zone = java.time.ZoneId.systemDefault()
+        db.query("SELECT month, amount, notified80, notifiedExceeded FROM budgets").use { cursor ->
+            while (cursor.moveToNext()) {
+                val month = cursor.getString(0)
+                val amount = cursor.getDouble(1)
+                val notified80 = cursor.getInt(2)
+                val notifiedExceeded = cursor.getInt(3)
+
+                val yearMonth = java.time.YearMonth.parse(month)
+                val start = yearMonth.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+                val end = yearMonth.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+
+                db.execSQL(
+                    "INSERT INTO budgets_new (startDateMillis, endDateMillis, amount, notified80, notifiedExceeded) VALUES (?, ?, ?, ?, ?)",
+                    arrayOf<Any>(start, end, amount, notified80, notifiedExceeded)
+                )
+            }
+        }
+
+        db.execSQL("DROP TABLE budgets")
+        db.execSQL("ALTER TABLE budgets_new RENAME TO budgets")
+    }
+}
+
 @Database(
     entities = [TransactionEntity::class, BudgetEntity::class, AppSettingsEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -53,7 +98,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "dhanapala.db"
                 )
-                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     // Safety net only for schema jumps with no migration path
                     // (e.g. very old pre-release installs) — real installs from
                     // here on go through explicit migrations so data survives.

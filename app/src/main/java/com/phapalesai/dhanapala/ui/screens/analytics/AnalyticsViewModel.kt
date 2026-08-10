@@ -10,6 +10,7 @@ import com.phapalesai.dhanapala.util.DateUtils
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import java.time.Instant
 import java.time.LocalDate
@@ -33,16 +34,21 @@ data class AnalyticsUiState(
     val topDay: DailySpend? = null
 )
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AnalyticsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app = application as DhanapalaApplication
-    private val monthKey = DateUtils.monthKey()
-    private val monthRange = DateUtils.monthRangeMillis(YearMonth.now())
+    private val zone = ZoneId.systemDefault()
+    private val nowMillis = System.currentTimeMillis()
 
-    val uiState: StateFlow<AnalyticsUiState> = combine(
-        app.transactionRepository.observeBetween(monthRange.first, monthRange.last),
-        app.budgetRepository.observeBudget(monthKey)
-    ) { transactions, budgetEntity ->
+    private val activeBudget = app.budgetRepository.observeActive(nowMillis)
+    private val periodTransactions = activeBudget.flatMapLatest { budget ->
+        val range = budget?.let { it.startDateMillis to it.endDateMillis }
+            ?: DateUtils.monthRangeMillis(YearMonth.now()).let { it.first to it.last }
+        app.transactionRepository.observeBetween(range.first, range.second)
+    }
+
+    val uiState: StateFlow<AnalyticsUiState> = combine(periodTransactions, activeBudget) { transactions, budgetEntity ->
         val debits = transactions.filter { it.type == TransactionType.DEBIT }
         val totalSpend = debits.sumOf { it.amount }.coerceAtLeast(0.01)
 
@@ -55,13 +61,16 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
             .sortedByDescending { it.amount }
 
         val byDay = debits
-            .groupBy {
-                Instant.ofEpochMilli(it.dateMillis).atZone(ZoneId.systemDefault()).toLocalDate()
-            }
+            .groupBy { Instant.ofEpochMilli(it.dateMillis).atZone(zone).toLocalDate() }
             .map { (date, txs) -> DailySpend(date, txs.sumOf { it.amount }) }
             .sortedBy { it.date }
 
-        val summary = BudgetCalculator.calculate(budgetEntity?.amount ?: 0.0, transactions)
+        val periodEnd = budgetEntity?.let { Instant.ofEpochMilli(it.endDateMillis).atZone(zone).toLocalDate() }
+        val summary = if (periodEnd != null) {
+            BudgetCalculator.calculate(budgetEntity.amount, transactions, periodEnd = periodEnd)
+        } else {
+            BudgetCalculator.calculate(0.0, transactions)
+        }
         val daysElapsed = byDay.map { it.date }.distinct().size.coerceAtLeast(1)
 
         AnalyticsUiState(
