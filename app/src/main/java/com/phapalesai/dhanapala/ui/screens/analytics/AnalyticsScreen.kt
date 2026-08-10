@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,8 +22,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,9 +73,21 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel = viewModel()) {
                     if (state.byCategory.isEmpty()) {
                         Text("No spending yet this month.", style = MaterialTheme.typography.bodyMedium)
                     } else {
-                        CategoryDonutChart(state.byCategory, state.spent)
-                        state.byCategory.forEach { entry ->
-                            CategoryBar(entry)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                CategoryDonutChart(state.byCategory, state.spent)
+                            }
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                state.byCategory.forEach { entry ->
+                                    CategoryLegendRow(entry)
+                                }
+                            }
                         }
                     }
                 }
@@ -212,39 +223,36 @@ private fun CategoryDonutChart(byCategory: List<CategorySpend>, totalSpent: Doub
 }
 
 @Composable
-private fun CategoryBar(entry: CategorySpend) {
+private fun CategoryLegendRow(entry: CategorySpend) {
     val color = categoryColor(entry.category)
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("${categoryEmoji(entry.category)} ${entry.category}", style = MaterialTheme.typography.bodyMedium)
-            Text(
-                "${CurrencyFormat.rupees(entry.amount)}  ·  ${entry.percentOfSpend.roundToInt()}%",
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(10.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            val animatedFraction by animateFloatAsState(
-                targetValue = (entry.percentOfSpend / 100.0).toFloat().coerceIn(0f, 1f),
-                animationSpec = tween(700),
-                label = "categoryBar"
+                .size(10.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(color)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "${categoryEmoji(entry.category)} ${entry.category}",
+                style = MaterialTheme.typography.bodyMedium
             )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(animatedFraction)
-                    .height(10.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(color)
+            Text(
+                CurrencyFormat.rupees(entry.amount),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        Text(
+            "${entry.percentOfSpend.roundToInt()}%",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
     }
 }
 

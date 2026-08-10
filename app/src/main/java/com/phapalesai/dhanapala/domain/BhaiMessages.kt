@@ -150,4 +150,23 @@ object BhaiMessages {
             "Pagar aali! Lagech kharch suru karu nakos 😂"
         )
     )
+
+    /** Lighter positive nudge for everyday credits that aren't salary-sized — someone paid you back, a small transfer, etc. */
+    val moneyReceivedMessages: Map<RoastLanguage, List<String>> = mapOf(
+        RoastLanguage.EN to listOf(
+            "Cha-ching! 💰 Money in.",
+            "Nice, someone likes you enough to pay you 😄",
+            "Free money alert! (well, not free, but still) 🎉"
+        ),
+        RoastLanguage.HI to listOf(
+            "Cha-ching! 💰 Paisa aaya.",
+            "Wah bhai, kisi ne pyaar se paise bheje 😄",
+            "Bhai ke account mein khushiyan aayi hain 🎉"
+        ),
+        RoastLanguage.MR to listOf(
+            "Cha-ching! 💰 Paise ale.",
+            "Vah bhava, konitari premane paise pathavle 😄",
+            "Bhava chya account madhe khushi ali 🎉"
+        )
+    )
 }

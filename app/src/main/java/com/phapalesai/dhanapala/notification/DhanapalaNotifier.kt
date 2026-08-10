@@ -48,6 +48,13 @@ class DhanapalaNotifier(private val context: Context) {
         )
     }
 
+    fun notifyMoneyReceived(amount: Double, bhaiMessage: String) {
+        show(
+            title = "💰 Money received",
+            text = "${CurrencyFormat.rupees(amount)} credited.\n$bhaiMessage"
+        )
+    }
+
     fun notifyBudgetThreshold(percentUsed: Int, remaining: Double) {
         show(
             title = "⚠️ Budget Alert",

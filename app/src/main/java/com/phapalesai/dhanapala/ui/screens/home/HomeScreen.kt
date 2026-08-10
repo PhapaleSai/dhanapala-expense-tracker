@@ -26,6 +26,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -266,7 +269,21 @@ private fun BudgetCard(state: HomeUiState, onEditBudget: (Double) -> Unit) {
     val summary = state.summary
     var showEditDialog by remember { mutableStateOf(false) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                        Color.Transparent
+                    ),
+                    radius = 520f
+                )
+            )
+    ) {
+        Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -312,11 +329,29 @@ private fun BudgetCard(state: HomeUiState, onEditBudget: (Double) -> Unit) {
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                LabeledAmount("Budget", CurrencyFormat.rupees(summary.budget))
-                LabeledAmount("Spent", CurrencyFormat.rupees(summary.spent))
-                LabeledAmount("Credited", CurrencyFormat.rupees(summary.credited))
+                IconStatCard(
+                    icon = Icons.Filled.AccountBalanceWallet,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    label = "Budget",
+                    value = CurrencyFormat.rupees(summary.budget),
+                    modifier = Modifier.weight(1f)
+                )
+                IconStatCard(
+                    icon = Icons.AutoMirrored.Filled.TrendingDown,
+                    iconTint = MaterialTheme.colorScheme.error,
+                    label = "Spent",
+                    value = CurrencyFormat.rupees(summary.spent),
+                    modifier = Modifier.weight(1f)
+                )
+                IconStatCard(
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
+                    iconTint = com.phapalesai.dhanapala.ui.theme.DhanapalaGold,
+                    label = "Credited",
+                    value = CurrencyFormat.rupees(summary.credited),
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             Row(
@@ -331,6 +366,7 @@ private fun BudgetCard(state: HomeUiState, onEditBudget: (Double) -> Unit) {
             }
 
             LabeledAmount("Today's spending", CurrencyFormat.rupees(summary.todaySpending))
+        }
         }
     }
 
@@ -400,6 +436,34 @@ private fun BudgetProgressRing(percent: Float, color: Color) {
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+@Composable
+private fun IconStatCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(iconTint.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(16.dp))
+            }
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+        }
     }
 }
 

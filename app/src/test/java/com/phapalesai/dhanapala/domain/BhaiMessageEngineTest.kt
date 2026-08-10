@@ -81,4 +81,10 @@ class BhaiMessageEngineTest {
     fun `small credit is not flagged as salary`() {
         assertTrue(!BhaiMessageEngine.isLikelySalary(amount = 200.0))
     }
+
+    @Test
+    fun `money received message comes from the requested language pool`() {
+        val msg = BhaiMessageEngine.moneyReceivedMessage(language = RoastLanguage.MR)
+        assertTrue(msg in BhaiMessages.moneyReceivedMessages.getValue(RoastLanguage.MR))
+    }
 }

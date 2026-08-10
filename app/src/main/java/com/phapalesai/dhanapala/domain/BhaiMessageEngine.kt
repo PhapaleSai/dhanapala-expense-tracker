@@ -44,6 +44,9 @@ object BhaiMessageEngine {
     fun salaryMessage(language: RoastLanguage = RoastLanguage.HI, random: Random = Random.Default): String =
         (BhaiMessages.salaryMessages[language] ?: BhaiMessages.salaryMessages.getValue(RoastLanguage.HI)).random(random)
 
+    fun moneyReceivedMessage(language: RoastLanguage = RoastLanguage.HI, random: Random = Random.Default): String =
+        (BhaiMessages.moneyReceivedMessages[language] ?: BhaiMessages.moneyReceivedMessages.getValue(RoastLanguage.HI)).random(random)
+
     /**
      * Heuristic only, not a claim of certainty — a big credit that looks like
      * a salary. The caller can also flag this explicitly (e.g. category == Salary).

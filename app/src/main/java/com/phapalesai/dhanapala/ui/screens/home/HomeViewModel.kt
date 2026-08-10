@@ -119,6 +119,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 tx.type == TransactionType.CREDIT && BhaiMessageEngine.isLikelySalary(tx.amount) ->
                     notifier.notifySalaryCredit(tx.amount, BhaiMessageEngine.salaryMessage(settings.roastLanguageEnum))
+                tx.type == TransactionType.CREDIT && tx.amount >= 100 ->
+                    notifier.notifyMoneyReceived(tx.amount, BhaiMessageEngine.moneyReceivedMessage(settings.roastLanguageEnum))
             }
         }
 
