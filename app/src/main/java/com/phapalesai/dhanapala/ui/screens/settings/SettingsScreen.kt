@@ -28,6 +28,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.phapalesai.dhanapala.domain.RoastLanguage
+import com.phapalesai.dhanapala.domain.RoastLevel
+import com.phapalesai.dhanapala.domain.roastLanguageEnum
+import com.phapalesai.dhanapala.domain.roastLevelEnum
 import android.content.Intent
 import java.io.File
 
@@ -51,6 +55,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onViewRawSms: () 
         mutableStateOf(settings.largeExpenseThreshold.toInt().toString())
     }
     var showResetConfirm by remember { mutableStateOf(false) }
+    var nameText by remember(settings.userName) { mutableStateOf(settings.userName) }
 
     Scaffold { innerPadding ->
         Column(
@@ -61,6 +66,25 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onViewRawSms: () 
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Settings", style = MaterialTheme.typography.headlineMedium)
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Your name", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Used to greet you on the dashboard.",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    OutlinedTextField(
+                        value = nameText,
+                        onValueChange = { nameText = it },
+                        label = { Text("Name") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(onClick = { viewModel.updateSettings { it.copy(userName = nameText.trim()) } }) {
+                        Text("Save name")
+                    }
+                }
+            }
 
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -106,6 +130,40 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onViewRawSms: () 
             }
 
             Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("🌶️ Roast Level", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "How savage should Bhai Mode get?",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        RoastLevelOption("😇", "Mild", RoastLevel.MILD, settings.roastLevelEnum) {
+                            viewModel.updateSettings { s -> s.copy(roastLevel = it.name) }
+                        }
+                        RoastLevelOption("😏", "Medium", RoastLevel.MEDIUM, settings.roastLevelEnum) {
+                            viewModel.updateSettings { s -> s.copy(roastLevel = it.name) }
+                        }
+                        RoastLevelOption("🔥", "Savage", RoastLevel.SAVAGE, settings.roastLevelEnum) {
+                            viewModel.updateSettings { s -> s.copy(roastLevel = it.name) }
+                        }
+                    }
+
+                    Text("Roast Language", style = MaterialTheme.typography.titleMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LanguageOption("English", RoastLanguage.EN, settings.roastLanguageEnum) {
+                            viewModel.updateSettings { s -> s.copy(roastLanguage = it.name) }
+                        }
+                        LanguageOption("Hindi", RoastLanguage.HI, settings.roastLanguageEnum) {
+                            viewModel.updateSettings { s -> s.copy(roastLanguage = it.name) }
+                        }
+                        LanguageOption("Marathi", RoastLanguage.MR, settings.roastLanguageEnum) {
+                            viewModel.updateSettings { s -> s.copy(roastLanguage = it.name) }
+                        }
+                    }
+                }
+            }
+
+            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("SMS", style = MaterialTheme.typography.titleMedium)
                     Button(onClick = viewModel::rescanSms) { Text("Rescan SMS") }
@@ -132,6 +190,15 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onViewRawSms: () 
                     OutlinedButton(onClick = { showResetConfirm = true }) { Text("Reset all data") }
                 }
             }
+
+            Text(
+                text = "धनपाल — All rights reserved by Sai.",
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
     }
 
@@ -162,4 +229,33 @@ private fun SettingToggleRow(label: String, checked: Boolean, onCheckedChange: (
         Text(label, style = MaterialTheme.typography.bodyLarge)
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
+}
+
+@Composable
+private fun RoastLevelOption(
+    emoji: String,
+    label: String,
+    value: RoastLevel,
+    selected: RoastLevel,
+    onSelect: (RoastLevel) -> Unit
+) {
+    androidx.compose.material3.FilterChip(
+        selected = value == selected,
+        onClick = { onSelect(value) },
+        label = { Text("$emoji $label") }
+    )
+}
+
+@Composable
+private fun LanguageOption(
+    label: String,
+    value: RoastLanguage,
+    selected: RoastLanguage,
+    onSelect: (RoastLanguage) -> Unit
+) {
+    androidx.compose.material3.FilterChip(
+        selected = value == selected,
+        onClick = { onSelect(value) },
+        label = { Text(label) }
+    )
 }

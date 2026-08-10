@@ -13,7 +13,7 @@ object Category {
     const val REFUND = "Refund"
     const val TRANSFER = "Transfer"
     const val OTHER = "Other"
-    const val UNCATEGORIZED = "Uncategorized"
+    const val UNCATEGORIZED = "Anonymous Expenses"
 
     val ALL = listOf(
         FOOD, FUEL, SHOPPING, BILLS, ENTERTAINMENT, TRAVEL, UPI,

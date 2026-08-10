@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 class Converters {
     @TypeConverter
@@ -15,9 +16,23 @@ class Converters {
     fun toType(value: String): TransactionType = TransactionType.valueOf(value)
 }
 
+val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE app_settings ADD COLUMN roastLevel TEXT NOT NULL DEFAULT 'MEDIUM'")
+        db.execSQL("ALTER TABLE app_settings ADD COLUMN roastLanguage TEXT NOT NULL DEFAULT 'HI'")
+    }
+}
+
+val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE app_settings ADD COLUMN userName TEXT NOT NULL DEFAULT ''")
+        db.execSQL("UPDATE transactions SET category = 'Anonymous Expenses' WHERE category = 'Uncategorized'")
+    }
+}
+
 @Database(
     entities = [TransactionEntity::class, BudgetEntity::class, AppSettingsEntity::class],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -38,8 +53,10 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "dhanapala.db"
                 )
-                    // Pre-1.0, no shipped schema to preserve yet — fine to
-                    // recreate the DB on schema changes until first real release.
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+                    // Safety net only for schema jumps with no migration path
+                    // (e.g. very old pre-release installs) — real installs from
+                    // here on go through explicit migrations so data survives.
                     .fallbackToDestructiveMigration()
                     .build().also { INSTANCE = it }
             }

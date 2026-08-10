@@ -19,37 +19,57 @@ class BhaiMessageEngineTest {
     @Test
     fun `small spend picks from small pool`() {
         val msg = BhaiMessageEngine.spendingReaction(amount = 100.0, largeExpenseThreshold = 1000.0)
-        assertTrue(msg in BhaiMessages.smallSpend)
+        assertTrue(msg in BhaiMessages.pool(RoastLanguage.HI, RoastLevel.MEDIUM, RoastCategory.SMALL_SPEND))
     }
 
     @Test
     fun `spend at or above threshold picks from large pool`() {
         val msg = BhaiMessageEngine.spendingReaction(amount = 1500.0, largeExpenseThreshold = 1000.0)
-        assertTrue(msg in BhaiMessages.largeSpend)
+        assertTrue(msg in BhaiMessages.pool(RoastLanguage.HI, RoastLevel.MEDIUM, RoastCategory.LARGE_SPEND))
     }
 
     @Test
     fun `under 50 percent picks safe pool`() {
         val msg = BhaiMessageEngine.budgetReaction(summary(budget = 5000.0, spent = 1000.0))
-        assertTrue(msg in BhaiMessages.under50)
+        assertTrue(msg in BhaiMessages.pool(RoastLanguage.HI, RoastLevel.MEDIUM, RoastCategory.UNDER_50))
     }
 
     @Test
     fun `90 to 100 percent picks danger pool`() {
         val msg = BhaiMessageEngine.budgetReaction(summary(budget = 5000.0, spent = 4600.0))
-        assertTrue(msg in BhaiMessages.between90and100)
+        assertTrue(msg in BhaiMessages.pool(RoastLanguage.HI, RoastLevel.MEDIUM, RoastCategory.BETWEEN_90_100))
     }
 
     @Test
     fun `over budget formats numbers into the template message`() {
         val msg = BhaiMessageEngine.budgetReaction(summary(budget = 5000.0, spent = 5347.0))
-        assertTrue(msg in BhaiMessages.overBudget || msg.contains("5000"))
+        val pool = BhaiMessages.pool(RoastLanguage.HI, RoastLevel.MEDIUM, RoastCategory.OVER_BUDGET)
+        assertTrue(msg in pool || msg.contains("5000"))
     }
 
     @Test
     fun `exactly zero remaining picks the zero pool`() {
         val msg = BhaiMessageEngine.budgetReaction(summary(budget = 5000.0, spent = 5000.0))
-        assertTrue(msg in BhaiMessages.zeroRemaining)
+        assertTrue(msg in BhaiMessages.pool(RoastLanguage.HI, RoastLevel.MEDIUM, RoastCategory.ZERO_REMAINING))
+    }
+
+    @Test
+    fun `english language picks from english pool`() {
+        val msg = BhaiMessageEngine.spendingReaction(
+            amount = 100.0,
+            largeExpenseThreshold = 1000.0,
+            language = RoastLanguage.EN
+        )
+        assertTrue(msg in BhaiMessages.pool(RoastLanguage.EN, RoastLevel.MEDIUM, RoastCategory.SMALL_SPEND))
+    }
+
+    @Test
+    fun `savage level picks from savage pool not medium`() {
+        val msg = BhaiMessageEngine.budgetReaction(
+            summary(budget = 5000.0, spent = 4600.0),
+            level = RoastLevel.SAVAGE
+        )
+        assertTrue(msg in BhaiMessages.pool(RoastLanguage.HI, RoastLevel.SAVAGE, RoastCategory.BETWEEN_90_100))
     }
 
     @Test

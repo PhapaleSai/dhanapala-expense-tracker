@@ -41,6 +41,7 @@ import com.phapalesai.dhanapala.data.local.TransactionEntity
 import com.phapalesai.dhanapala.data.local.TransactionType
 import com.phapalesai.dhanapala.ui.categoryEmoji
 import com.phapalesai.dhanapala.util.CurrencyFormat
+import com.phapalesai.dhanapala.util.Greeting
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -84,9 +85,18 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                         text = "$monthName ${LocalDate.now().year}",
                         style = MaterialTheme.typography.labelSmall
                     )
+                    val greeting = Greeting.forTime()
+                    Text(
+                        text = if (state.settings.userName.isNotBlank()) {
+                            "$greeting, ${state.settings.userName} 👋"
+                        } else {
+                            "$greeting 👋"
+                        },
+                        style = MaterialTheme.typography.headlineMedium
+                    )
                     Text(
                         text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.headlineMedium
+                        style = MaterialTheme.typography.labelSmall
                     )
                 }
                 IconButton(
@@ -105,7 +115,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
             if (!state.hasBudgetSet) {
                 SetBudgetCard(onSave = viewModel::setBudget)
             } else {
-                BudgetCard(state)
+                BudgetCard(state, onEditBudget = viewModel::setBudget)
             }
 
             BhaiMeterCard(state.bhaiMessage)
@@ -144,11 +154,22 @@ private fun SetBudgetCard(onSave: (Double) -> Unit) {
 }
 
 @Composable
-private fun BudgetCard(state: HomeUiState) {
+private fun BudgetCard(state: HomeUiState, onEditBudget: (Double) -> Unit) {
     val summary = state.summary
+    var showEditDialog by remember { mutableStateOf(false) }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Remaining", style = MaterialTheme.typography.labelSmall)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Remaining", style = MaterialTheme.typography.labelSmall)
+                androidx.compose.material3.TextButton(onClick = { showEditDialog = true }) {
+                    Text("Edit budget")
+                }
+            }
             Text(
                 text = CurrencyFormat.rupees(summary.remaining),
                 style = MaterialTheme.typography.headlineLarge,
@@ -190,6 +211,34 @@ private fun BudgetCard(state: HomeUiState) {
 
             LabeledAmount("Today's spending", CurrencyFormat.rupees(summary.todaySpending))
         }
+    }
+
+    if (showEditDialog) {
+        var text by remember { mutableStateOf(summary.budget.toInt().toString()) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Change this month's budget") },
+            text = {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("Monthly budget (₹)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        text.toDoubleOrNull()?.let(onEditBudget)
+                        showEditDialog = false
+                    },
+                    enabled = text.toDoubleOrNull() != null
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showEditDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 

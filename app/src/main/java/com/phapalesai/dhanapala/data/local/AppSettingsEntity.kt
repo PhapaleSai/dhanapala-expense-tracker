@@ -9,5 +9,8 @@ data class AppSettingsEntity(
     val largeExpenseThreshold: Double = 1000.0,
     val bhaiModeEnabled: Boolean = true,
     val notificationsEnabled: Boolean = true,
-    val dailyReminderEnabled: Boolean = false
+    val dailyReminderEnabled: Boolean = false,
+    val roastLevel: String = "MEDIUM",
+    val roastLanguage: String = "HI",
+    val userName: String = ""
 )

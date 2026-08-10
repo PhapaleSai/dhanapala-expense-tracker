@@ -10,6 +10,8 @@ import com.phapalesai.dhanapala.domain.BhaiMessageEngine
 import com.phapalesai.dhanapala.domain.BudgetCalculator
 import com.phapalesai.dhanapala.domain.BudgetNotifyTier
 import com.phapalesai.dhanapala.domain.BudgetNotificationDecider
+import com.phapalesai.dhanapala.domain.roastLanguageEnum
+import com.phapalesai.dhanapala.domain.roastLevelEnum
 import com.phapalesai.dhanapala.util.DateUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -48,7 +50,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         HomeUiState(
             summary = summary,
             recentTransactions = transactions.take(5),
-            bhaiMessage = if (settings.bhaiModeEnabled) BhaiMessageEngine.budgetReaction(summary) else null,
+            bhaiMessage = if (settings.bhaiModeEnabled) {
+                BhaiMessageEngine.budgetReaction(summary, settings.roastLanguageEnum, settings.roastLevelEnum)
+            } else {
+                null
+            },
             hasBudgetSet = budgetEntity != null,
             settings = settings,
             isScanning = isScanning,
@@ -86,10 +92,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 tx.type == TransactionType.DEBIT && tx.amount >= settings.largeExpenseThreshold ->
                     notifier.notifyLargeExpense(
                         tx.amount,
-                        BhaiMessageEngine.spendingReaction(tx.amount, settings.largeExpenseThreshold)
+                        BhaiMessageEngine.spendingReaction(
+                            tx.amount,
+                            settings.largeExpenseThreshold,
+                            settings.roastLanguageEnum,
+                            settings.roastLevelEnum
+                        )
                     )
                 tx.type == TransactionType.CREDIT && BhaiMessageEngine.isLikelySalary(tx.amount) ->
-                    notifier.notifySalaryCredit(tx.amount, BhaiMessageEngine.salaryMessage())
+                    notifier.notifySalaryCredit(tx.amount, BhaiMessageEngine.salaryMessage(settings.roastLanguageEnum))
             }
         }
 
