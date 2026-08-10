@@ -21,13 +21,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.phapalesai.dhanapala.ui.categoryColor
 import com.phapalesai.dhanapala.ui.categoryEmoji
 import com.phapalesai.dhanapala.ui.theme.DhanapalaGold
 import com.phapalesai.dhanapala.ui.theme.DhanapalaGreen
@@ -68,6 +74,7 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel = viewModel()) {
                     if (state.byCategory.isEmpty()) {
                         Text("No spending yet this month.", style = MaterialTheme.typography.bodyMedium)
                     } else {
+                        CategoryDonutChart(state.byCategory, state.spent)
                         state.byCategory.forEach { entry ->
                             CategoryBar(entry)
                         }
@@ -163,7 +170,50 @@ private fun InsightsCard(state: AnalyticsUiState) {
 }
 
 @Composable
+private fun CategoryDonutChart(byCategory: List<CategorySpend>, totalSpent: Double) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.height(150.dp).width(150.dp)) {
+            val strokeWidth = 26.dp.toPx()
+            val diameter = size.minDimension - strokeWidth
+            val topLeft = androidx.compose.ui.geometry.Offset(
+                (size.width - diameter) / 2f,
+                (size.height - diameter) / 2f
+            )
+            val arcSize = Size(diameter, diameter)
+            var startAngle = -90f
+            byCategory.forEach { entry ->
+                val sweep = (entry.percentOfSpend / 100.0 * 360.0).toFloat()
+                drawArc(
+                    color = categoryColor(entry.category),
+                    startAngle = startAngle,
+                    sweepAngle = sweep.coerceAtLeast(0.5f),
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Butt)
+                )
+                startAngle += sweep
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Total", style = MaterialTheme.typography.labelSmall)
+            Text(
+                CurrencyFormat.rupees(totalSpent),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
 private fun CategoryBar(entry: CategorySpend) {
+    val color = categoryColor(entry.category)
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -182,12 +232,17 @@ private fun CategoryBar(entry: CategorySpend) {
                 .clip(RoundedCornerShape(4.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
+            val animatedFraction by animateFloatAsState(
+                targetValue = (entry.percentOfSpend / 100.0).toFloat().coerceIn(0f, 1f),
+                animationSpec = tween(700),
+                label = "categoryBar"
+            )
             Box(
                 modifier = Modifier
-                    .fillMaxWidth((entry.percentOfSpend / 100.0).toFloat().coerceIn(0f, 1f))
+                    .fillMaxWidth(animatedFraction)
                     .height(10.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(MaterialTheme.colorScheme.primary)
+                    .background(color)
             )
         }
     }

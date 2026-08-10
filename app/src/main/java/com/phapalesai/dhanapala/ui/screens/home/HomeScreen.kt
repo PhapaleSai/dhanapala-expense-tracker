@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,8 +13,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
@@ -23,7 +31,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -35,6 +42,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -53,7 +63,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
+fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> Unit = {}) {
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -117,6 +127,12 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                 }
             }
 
+            ActionTilesRow(
+                hasPermission = hasPermission,
+                onScan = { if (hasPermission) viewModel.scanSms() else permissionLauncher.launch(Manifest.permission.READ_SMS) },
+                onAddTransaction = onAddTransaction
+            )
+
             if (state.settings.userName.isBlank()) {
                 NamePromptCard(onSave = viewModel::setUserName)
             }
@@ -140,6 +156,64 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
             )
 
             RecentTransactionsCard(state.recentTransactions)
+        }
+    }
+}
+
+@Composable
+private fun ActionTilesRow(hasPermission: Boolean, onScan: () -> Unit, onAddTransaction: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        ActionTile(
+            label = if (hasPermission) "Scan SMS" else "Grant SMS access",
+            icon = Icons.Filled.Refresh,
+            colors = listOf(Color(0xFF00B383), Color(0xFF00E5A0)),
+            onClick = onScan,
+            modifier = Modifier.weight(1f)
+        )
+        ActionTile(
+            label = "Add Transaction",
+            icon = null,
+            colors = listOf(Color(0xFFB8860B), Color(0xFFFFC857)),
+            onClick = onAddTransaction,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun ActionTile(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    colors: List<Color>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(84.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Brush.linearGradient(colors))
+            .clickable(onClick = onClick)
+            .padding(14.dp)
+    ) {
+        Column(
+            verticalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = Color(0xFF06110C))
+            } else {
+                Text("+", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color(0xFF06110C))
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF06110C)
+            )
         }
     }
 }
@@ -204,30 +278,33 @@ private fun BudgetCard(state: HomeUiState, onEditBudget: (Double) -> Unit) {
                     Text("Edit budget")
                 }
             }
-            val animatedRemaining by animateFloatAsState(
-                targetValue = summary.remaining.toFloat(),
-                animationSpec = tween(700),
-                label = "remaining"
-            )
-            Text(
-                text = CurrencyFormat.rupees(animatedRemaining.toDouble()),
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = if (summary.remaining < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-            )
 
             val animatedPercent by animateFloatAsState(
                 targetValue = (summary.percentUsed / 100.0).toFloat().coerceIn(0f, 1f),
                 animationSpec = tween(700),
                 label = "percentUsed"
             )
-            LinearProgressIndicator(
-                progress = { animatedPercent },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(10.dp),
-                color = if (summary.percentUsed >= 90) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-            )
+            val ringColor = if (summary.percentUsed >= 90) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val animatedRemaining by animateFloatAsState(
+                    targetValue = summary.remaining.toFloat(),
+                    animationSpec = tween(700),
+                    label = "remaining"
+                )
+                Text(
+                    text = CurrencyFormat.rupees(animatedRemaining.toDouble()),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (summary.remaining < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+                BudgetProgressRing(percent = animatedPercent, color = ringColor)
+            }
+
             Text(
                 text = "${(summary.percentUsed).roundToInt()}% used",
                 style = MaterialTheme.typography.labelSmall
@@ -294,6 +371,35 @@ private fun MoneyTipCard(tip: String?) {
             Text("💡 Money-Saving Tip", style = MaterialTheme.typography.titleMedium)
             Text(text = tip, style = MaterialTheme.typography.bodyMedium)
         }
+    }
+}
+
+@Composable
+private fun BudgetProgressRing(percent: Float, color: Color) {
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    Box(contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.size(64.dp)) {
+            val strokeWidth = 8.dp.toPx()
+            drawArc(
+                color = trackColor,
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
+            drawArc(
+                color = color,
+                startAngle = -90f,
+                sweepAngle = 360f * percent,
+                useCenter = false,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
+        }
+        Text(
+            text = "${(percent * 100).roundToInt()}%",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

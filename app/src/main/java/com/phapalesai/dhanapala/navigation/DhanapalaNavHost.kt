@@ -84,7 +84,9 @@ fun DhanapalaNavHost() {
             popEnterTransition = { fadeIn(tween(200)) },
             popExitTransition = { fadeOut(tween(150)) + slideOutHorizontally(tween(150)) { it / 10 } }
         ) {
-            composable(Routes.HOME) { HomeScreen() }
+            composable(Routes.HOME) {
+                HomeScreen(onAddTransaction = { navController.navigate(Routes.TRANSACTIONS) })
+            }
             composable(Routes.TRANSACTIONS) { TransactionsScreen() }
             composable(Routes.ANALYTICS) { AnalyticsScreen() }
             composable(Routes.SETTINGS) {
