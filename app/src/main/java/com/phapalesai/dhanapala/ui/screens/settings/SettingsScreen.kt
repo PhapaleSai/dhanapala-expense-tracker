@@ -23,12 +23,29 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.content.Intent
+import java.io.File
+
+private fun shareCsv(context: android.content.Context, csv: String) {
+    val file = File(context.cacheDir, "dhanapala-export-${System.currentTimeMillis()}.csv")
+    file.writeText(csv)
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/csv"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(intent, "Export transactions"))
+}
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onViewRawSms: () -> Unit = {}) {
+    val context = LocalContext.current
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     var thresholdText by remember(settings.largeExpenseThreshold) {
         mutableStateOf(settings.largeExpenseThreshold.toInt().toString())
@@ -93,6 +110,19 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onViewRawSms: () 
                     Text("SMS", style = MaterialTheme.typography.titleMedium)
                     Button(onClick = viewModel::rescanSms) { Text("Rescan SMS") }
                     OutlinedButton(onClick = onViewRawSms) { Text("View raw SMS inbox") }
+                }
+            }
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Export", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Generated locally as a CSV and handed to the share sheet — never uploaded.",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Button(onClick = { viewModel.exportCsv { csv -> shareCsv(context, csv) } }) {
+                        Text("Export Data")
+                    }
                 }
             }
 

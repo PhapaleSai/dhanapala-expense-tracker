@@ -4,9 +4,11 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.phapalesai.dhanapala.DhanapalaApplication
+import com.phapalesai.dhanapala.data.export.CsvExporter
 import com.phapalesai.dhanapala.data.local.AppSettingsEntity
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -35,5 +37,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun resetAllData() {
         viewModelScope.launch { transactionRepo.deleteAll() }
+    }
+
+    fun exportCsv(onReady: (String) -> Unit) {
+        viewModelScope.launch {
+            val all = transactionRepo.observeAll().first()
+            onReady(CsvExporter.toCsv(all))
+        }
     }
 }
