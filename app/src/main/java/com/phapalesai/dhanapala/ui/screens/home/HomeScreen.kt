@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -27,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -70,16 +72,35 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            val monthName = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.getDefault())
-                .uppercase(Locale.getDefault())
-            Text(
-                text = "$monthName ${LocalDate.now().year}",
-                style = MaterialTheme.typography.labelSmall
-            )
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineMedium
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    val monthName = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.getDefault())
+                        .uppercase(Locale.getDefault())
+                    Text(
+                        text = "$monthName ${LocalDate.now().year}",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        if (hasPermission) viewModel.scanSms() else permissionLauncher.launch(Manifest.permission.READ_SMS)
+                    }
+                ) {
+                    if (state.isScanning) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                    } else {
+                        Text("🔄", style = MaterialTheme.typography.titleLarge)
+                    }
+                }
+            }
 
             if (!state.hasBudgetSet) {
                 SetBudgetCard(onSave = viewModel::setBudget)
