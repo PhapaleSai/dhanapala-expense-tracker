@@ -13,7 +13,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.phapalesai.dhanapala.R
 
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier, onOpenMessages: () -> Unit = {}) {
@@ -26,7 +28,7 @@ fun HomeScreen(modifier: Modifier = Modifier, onOpenMessages: () -> Unit = {}) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "धनपाल",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineLarge
             )
             Text(
