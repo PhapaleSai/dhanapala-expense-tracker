@@ -59,9 +59,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             settings = settings,
             isScanning = isScanning,
             lastScanResult = lastScanResult,
-            hasSmsPermission = hasSmsPermission
+            hasSmsPermission = hasSmsPermission,
+            moneyTip = moneyTipFor(transactions)
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
+
+    private fun moneyTipFor(transactions: List<com.phapalesai.dhanapala.data.local.TransactionEntity>): String {
+        val isFoodDeliveryContext = transactions.take(5).any { tx ->
+            tx.type == TransactionType.DEBIT &&
+                (tx.description?.let { com.phapalesai.dhanapala.data.parser.CategoryGuesser.isFoodDelivery(it) } == true)
+        }
+        val today = java.time.LocalDate.now().toEpochDay()
+        val seed = today + if (isFoodDeliveryContext) 1_000_000 else 0
+        return com.phapalesai.dhanapala.domain.MoneySavingTips.random(isFoodDeliveryContext, kotlin.random.Random(seed))
+    }
 
     fun onSmsPermissionResult(granted: Boolean) {
         _hasSmsPermission.value = granted

@@ -4,7 +4,33 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Stack of cash behind the lock -->
     <path
-        android:fillColor="#FFD54F"
-        android:pathData="M54,24 C40,24 30,34 30,46 C30,56 37,63 46,65 L46,72 L38,72 L38,80 L46,80 L46,88 L62,88 L62,80 L70,80 L70,72 L62,72 L62,65 C71,63 78,56 78,46 C78,34 68,24 54,24 Z M54,32 C63,32 70,38 70,46 C70,54 63,60 54,60 C45,60 38,54 38,46 C38,38 45,32 54,32 Z" />
+        android:fillColor="#00B383"
+        android:pathData="M28,66 L80,66 L80,78 L28,78 Z" />
+    <path
+        android:fillColor="#00E5A0"
+        android:pathData="M32,58 L84,58 L84,70 L32,70 Z" />
+    <path
+        android:fillColor="#06110C"
+        android:fillAlpha="0.35"
+        android:pathData="M52,61 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+
+    <!-- Padlock shackle -->
+    <path
+        android:strokeColor="#FFC857"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:pathData="M44,50 L44,40 A10,10 0 0 1 64,40 L64,50" />
+
+    <!-- Padlock body -->
+    <path
+        android:fillColor="#FFC857"
+        android:pathData="M38,48 L70,48 L70,76 L38,76 Z" />
+    <path
+        android:fillColor="#06110C"
+        android:pathData="M54,56 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+    <path
+        android:fillColor="#06110C"
+        android:pathData="M51,60 L57,60 L57,68 L51,68 Z" />
 </vector>

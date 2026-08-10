@@ -1,34 +1,30 @@
 package com.phapalesai.dhanapala.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
-private val LightColors = lightColorScheme(
+// Always dark: this app's identity is a premium black look, matching
+// fintech apps like CRED/Jupiter that stay dark regardless of system theme.
+private val DhanapalaColors = darkColorScheme(
     primary = DhanapalaGreen,
+    onPrimary = DhanapalaOnPrimary,
     secondary = DhanapalaGold,
+    onSecondary = DhanapalaOnPrimary,
     error = DhanapalaRed,
     background = DhanapalaBackground,
+    onBackground = DhanapalaOnSurface,
     surface = DhanapalaSurface,
-    onSurface = DhanapalaOnSurface
-)
-
-private val DarkColors = darkColorScheme(
-    primary = DhanapalaGreenLight,
-    secondary = DhanapalaGold,
-    error = DhanapalaRed
+    onSurface = DhanapalaOnSurface,
+    surfaceVariant = DhanapalaSurfaceElevated,
+    onSurfaceVariant = DhanapalaOnSurfaceMuted,
+    outline = DhanapalaOutline
 )
 
 @Composable
-fun DhanapalaTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
-    val colors = if (darkTheme) DarkColors else LightColors
+fun DhanapalaTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = colors,
+        colorScheme = DhanapalaColors,
         typography = DhanapalaTypography,
         content = content
     )

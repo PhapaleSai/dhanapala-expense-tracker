@@ -1,12 +1,24 @@
 package com.phapalesai.dhanapala.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -27,13 +39,13 @@ object Routes {
     const val MESSAGES = "messages"
 }
 
-private data class BottomTab(val route: String, val label: String, val emoji: String)
+private data class BottomTab(val route: String, val label: String, val icon: ImageVector)
 
 private val bottomTabs = listOf(
-    BottomTab(Routes.HOME, "Home", "🏠"),
-    BottomTab(Routes.TRANSACTIONS, "Transactions", "💸"),
-    BottomTab(Routes.ANALYTICS, "Analytics", "📊"),
-    BottomTab(Routes.SETTINGS, "Settings", "⚙️")
+    BottomTab(Routes.HOME, "Home", Icons.Filled.Home),
+    BottomTab(Routes.TRANSACTIONS, "Transactions", Icons.Filled.ReceiptLong),
+    BottomTab(Routes.ANALYTICS, "Analytics", Icons.Filled.BarChart),
+    BottomTab(Routes.SETTINGS, "Settings", Icons.Filled.Settings)
 )
 
 @Composable
@@ -56,7 +68,7 @@ fun DhanapalaNavHost() {
                                 restoreState = true
                             }
                         },
-                        icon = { Text(tab.emoji) },
+                        icon = { Icon(tab.icon, contentDescription = tab.label) },
                         label = { Text(tab.label) }
                     )
                 }
@@ -66,7 +78,11 @@ fun DhanapalaNavHost() {
         NavHost(
             navController = navController,
             startDestination = Routes.HOME,
-            modifier = androidx.compose.ui.Modifier.padding(innerPadding)
+            modifier = androidx.compose.ui.Modifier.padding(innerPadding),
+            enterTransition = { fadeIn(tween(200)) + slideInHorizontally(tween(200)) { it / 10 } },
+            exitTransition = { fadeOut(tween(150)) },
+            popEnterTransition = { fadeIn(tween(200)) },
+            popExitTransition = { fadeOut(tween(150)) + slideOutHorizontally(tween(150)) { it / 10 } }
         ) {
             composable(Routes.HOME) { HomeScreen() }
             composable(Routes.TRANSACTIONS) { TransactionsScreen() }

@@ -14,9 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -107,7 +112,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
                     if (state.isScanning) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp))
                     } else {
-                        Text("🔄", style = MaterialTheme.typography.titleLarge)
+                        Icon(Icons.Filled.Refresh, contentDescription = "Scan SMS", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -119,6 +124,8 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
             }
 
             BhaiMeterCard(state.bhaiMessage)
+
+            MoneyTipCard(state.moneyTip)
 
             ScanSmsCard(
                 hasPermission = hasPermission,
@@ -170,15 +177,25 @@ private fun BudgetCard(state: HomeUiState, onEditBudget: (Double) -> Unit) {
                     Text("Edit budget")
                 }
             }
+            val animatedRemaining by animateFloatAsState(
+                targetValue = summary.remaining.toFloat(),
+                animationSpec = tween(700),
+                label = "remaining"
+            )
             Text(
-                text = CurrencyFormat.rupees(summary.remaining),
+                text = CurrencyFormat.rupees(animatedRemaining.toDouble()),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = if (summary.remaining < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
             )
 
+            val animatedPercent by animateFloatAsState(
+                targetValue = (summary.percentUsed / 100.0).toFloat().coerceIn(0f, 1f),
+                animationSpec = tween(700),
+                label = "percentUsed"
+            )
             LinearProgressIndicator(
-                progress = { (summary.percentUsed / 100.0).toFloat().coerceIn(0f, 1f) },
+                progress = { animatedPercent },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(10.dp),
@@ -239,6 +256,17 @@ private fun BudgetCard(state: HomeUiState, onEditBudget: (Double) -> Unit) {
                 androidx.compose.material3.TextButton(onClick = { showEditDialog = false }) { Text("Cancel") }
             }
         )
+    }
+}
+
+@Composable
+private fun MoneyTipCard(tip: String?) {
+    if (tip == null) return
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("💡 Money-Saving Tip", style = MaterialTheme.typography.titleMedium)
+            Text(text = tip, style = MaterialTheme.typography.bodyMedium)
+        }
     }
 }
 

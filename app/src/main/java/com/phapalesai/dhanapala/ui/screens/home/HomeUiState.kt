@@ -14,5 +14,6 @@ data class HomeUiState(
     val settings: AppSettingsEntity = AppSettingsEntity(),
     val isScanning: Boolean = false,
     val lastScanResult: ScanResult? = null,
-    val hasSmsPermission: Boolean = false
+    val hasSmsPermission: Boolean = false,
+    val moneyTip: String? = null
 )
