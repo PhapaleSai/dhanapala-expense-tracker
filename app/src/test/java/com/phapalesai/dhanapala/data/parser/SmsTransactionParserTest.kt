@@ -100,4 +100,18 @@ class SmsTransactionParserTest {
         val b = parser.parse(sms(id = "2", body = "Rs. 500 debited from A/c XX9999 for UPI transaction."))
         assert(a?.dedupeHash != b?.dedupeHash)
     }
+
+    @Test
+    fun `real JSBL bank format with no space after Rs and opaque VPA parses as debit`() {
+        val result = parser.parse(
+            sms(
+                body = "A/c no. XX9476 is debited for Rs.5.00 on 09-08-2026 22:10:24 and CR to VPA " +
+                    "q345368832@ybl (UPI Ref no 127660747053) If not done by you, call 02024404521/22/23. JSBLPune"
+            )
+        )
+        assertEquals(TransactionType.DEBIT, result?.type)
+        assertEquals(5.0, result?.amount)
+        // A random-generated VPA (no brand name) has no signal to categorize
+        // beyond the generic UPI bucket — CategoryGuesser is tested separately.
+    }
 }
