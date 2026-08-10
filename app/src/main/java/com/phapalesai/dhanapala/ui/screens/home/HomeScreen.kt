@@ -143,7 +143,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
             if (!state.hasBudgetSet) {
                 SetBudgetCard(onSave = viewModel::setBudget, onSaveCustom = viewModel::setCustomBudget)
             } else {
-                BudgetCard(state, onEditBudget = viewModel::setBudget)
+                BudgetCard(state, onEditBudget = viewModel::editActiveBudgetPeriod)
             }
 
             BhaiMeterCard(state.bhaiMessage)
@@ -348,7 +348,7 @@ private fun DatePickerField(
 }
 
 @Composable
-private fun BudgetCard(state: HomeUiState, onEditBudget: (Double) -> Unit) {
+private fun BudgetCard(state: HomeUiState, onEditBudget: (LocalDate, LocalDate, Double) -> Unit) {
     val summary = state.summary
     var showEditDialog by remember { mutableStateOf(false) }
 
@@ -455,24 +455,47 @@ private fun BudgetCard(state: HomeUiState, onEditBudget: (Double) -> Unit) {
 
     if (showEditDialog) {
         var text by remember { mutableStateOf(summary.budget.toInt().toString()) }
+        var startDate by remember { mutableStateOf(state.periodStart ?: LocalDate.now()) }
+        var endDate by remember {
+            mutableStateOf(state.periodEnd ?: LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth()))
+        }
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showEditDialog = false },
-            title = { Text("Change this month's budget") },
+            title = { Text("Change budget") },
             text = {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Monthly budget (₹)") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { text = it.filter { c -> c.isDigit() || c == '.' } },
+                        label = { Text("Budget (₹)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        DatePickerField(
+                            label = "From",
+                            date = startDate,
+                            onDateChange = { startDate = it },
+                            modifier = Modifier.weight(1f)
+                        )
+                        DatePickerField(
+                            label = "To",
+                            date = endDate,
+                            onDateChange = { endDate = it },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
             },
             confirmButton = {
                 androidx.compose.material3.TextButton(
                     onClick = {
-                        text.toDoubleOrNull()?.let(onEditBudget)
+                        text.toDoubleOrNull()?.let { onEditBudget(startDate, endDate, it) }
                         showEditDialog = false
                     },
-                    enabled = text.toDoubleOrNull() != null
+                    enabled = text.toDoubleOrNull() != null && !endDate.isBefore(startDate)
                 ) { Text("Save") }
             },
             dismissButton = {

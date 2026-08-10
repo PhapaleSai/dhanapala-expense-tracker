@@ -282,7 +282,11 @@ private fun DailySpendingChart(byDay: List<DailySpend>) {
                         .width(12.dp)
                         .height((95 * heightFraction).dp)
                 ) {
-                    drawRect(color = if (isPeak) peakColor else barColor)
+                    val radius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx(), 6.dp.toPx())
+                    drawRoundRect(
+                        color = if (isPeak) peakColor else barColor,
+                        cornerRadius = radius
+                    )
                 }
                 Text(
                     text = day.date.format(dayFormatter),

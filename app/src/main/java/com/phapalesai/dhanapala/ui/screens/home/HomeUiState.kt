@@ -5,6 +5,7 @@ import com.phapalesai.dhanapala.data.local.TransactionEntity
 import com.phapalesai.dhanapala.data.repository.ScanResult
 import com.phapalesai.dhanapala.domain.BudgetCalculator
 import com.phapalesai.dhanapala.domain.BudgetSummary
+import java.time.LocalDate
 
 data class HomeUiState(
     val summary: BudgetSummary = BudgetCalculator.calculate(0.0, emptyList()),
@@ -15,5 +16,7 @@ data class HomeUiState(
     val isScanning: Boolean = false,
     val lastScanResult: ScanResult? = null,
     val hasSmsPermission: Boolean = false,
-    val moneyTip: String? = null
+    val moneyTip: String? = null,
+    val periodStart: LocalDate? = null,
+    val periodEnd: LocalDate? = null
 )

@@ -63,6 +63,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         scanState,
         _hasSmsPermission
     ) { transactions, budgetEntity, settings, (isScanning, lastScanResult), hasSmsPermission ->
+        val periodStart = budgetEntity?.let {
+            java.time.Instant.ofEpochMilli(it.startDateMillis).atZone(zone).toLocalDate()
+        }
         val periodEnd = budgetEntity?.let {
             java.time.Instant.ofEpochMilli(it.endDateMillis).atZone(zone).toLocalDate()
         }
@@ -84,7 +87,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             isScanning = isScanning,
             lastScanResult = lastScanResult,
             hasSmsPermission = hasSmsPermission,
-            moneyTip = moneyTipFor(transactions)
+            moneyTip = moneyTipFor(transactions),
+            periodStart = periodStart,
+            periodEnd = periodEnd
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
@@ -133,6 +138,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val start = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
             val end = endDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
             budgetRepo.setBudget(start, end, amount)
+        }
+    }
+
+    /** Edits the currently active period in place — amount and/or its date range. */
+    fun editActiveBudgetPeriod(startDate: LocalDate, endDate: LocalDate, amount: Double) {
+        viewModelScope.launch {
+            val active = budgetRepo.getActiveOnce(nowMillis)
+            val start = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
+            val end = endDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+            budgetRepo.setBudget(start, end, amount, existingId = active?.id)
         }
     }
 

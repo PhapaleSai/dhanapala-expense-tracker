@@ -1,21 +1,30 @@
 package com.phapalesai.dhanapala.ui.screens.transactions
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -30,12 +39,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.phapalesai.dhanapala.data.local.Category
 import com.phapalesai.dhanapala.data.local.TransactionEntity
 import com.phapalesai.dhanapala.data.local.TransactionType
+import com.phapalesai.dhanapala.ui.categoryColor
 import com.phapalesai.dhanapala.ui.categoryEmoji
 import com.phapalesai.dhanapala.util.CurrencyFormat
 import java.text.DateFormat
@@ -53,7 +65,9 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = viewModel()) {
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) { Text("+") }
+            FloatingActionButton(onClick = { showAddDialog = true }) {
+                Icon(Icons.Filled.Add, contentDescription = "Add transaction")
+            }
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
@@ -162,7 +176,11 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = viewModel()) {
 @Composable
 private fun TransactionRow(tx: TransactionEntity, onEditCategory: () -> Unit, onDelete: () -> Unit) {
     val formatter = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val color = categoryColor(tx.category)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -170,16 +188,35 @@ private fun TransactionRow(tx: TransactionEntity, onEditCategory: () -> Unit, on
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("${categoryEmoji(tx.category)} ${tx.category}", style = MaterialTheme.typography.titleMedium)
-                Text(formatter.format(Date(tx.dateMillis)), style = MaterialTheme.typography.labelSmall)
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(categoryEmoji(tx.category), style = MaterialTheme.typography.titleMedium)
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+            ) {
+                Text(tx.category, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    formatter.format(Date(tx.dateMillis)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 tx.description?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
                 }
                 if (tx.isManual) {
-                    Text("Manual entry", style = MaterialTheme.typography.labelSmall)
+                    Text("Manual entry", style = MaterialTheme.typography.labelSmall, color = color)
                 }
             }
+
             Column(horizontalAlignment = Alignment.End) {
                 val sign = if (tx.type == TransactionType.DEBIT) "-" else "+"
                 Text(
@@ -189,11 +226,14 @@ private fun TransactionRow(tx: TransactionEntity, onEditCategory: () -> Unit, on
                     } else {
                         MaterialTheme.colorScheme.primary
                     },
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = onEditCategory) { Text("Edit") }
-                    IconButton(onClick = onDelete) { Text("🗑") }
+                    IconButton(onClick = onDelete) {
+                        Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
         }
@@ -239,7 +279,15 @@ private fun CategoryPickerDialog(current: String, onDismiss: () -> Unit, onSelec
             Column {
                 Category.ALL.forEach { category ->
                     TextButton(onClick = { onSelect(category) }) {
-                        Text("${categoryEmoji(category)} $category")
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(categoryColor(category))
+                            )
+                            Text("${categoryEmoji(category)} $category")
+                        }
                     }
                 }
             }
