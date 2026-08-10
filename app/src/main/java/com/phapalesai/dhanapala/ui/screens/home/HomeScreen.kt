@@ -324,7 +324,9 @@ private fun DatePickerField(
 
     if (showPicker) {
         val state = androidx.compose.material3.rememberDatePickerState(
-            initialSelectedDateMillis = date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            // DatePicker's selectedDateMillis is always UTC midnight of the shown date,
+            // regardless of device timezone — must match here or the wrong day shows selected.
+            initialSelectedDateMillis = date.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
         )
         androidx.compose.material3.DatePickerDialog(
             onDismissRequest = { showPicker = false },
