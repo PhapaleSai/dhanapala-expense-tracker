@@ -7,7 +7,6 @@ import com.phapalesai.dhanapala.DhanapalaApplication
 import com.phapalesai.dhanapala.data.local.BudgetEntity
 import com.phapalesai.dhanapala.data.local.TransactionEntity
 import com.phapalesai.dhanapala.data.local.TransactionType
-import com.phapalesai.dhanapala.data.parser.CategoryGuesser
 import com.phapalesai.dhanapala.data.repository.ScanResult
 import com.phapalesai.dhanapala.domain.BhaiMessageEngine
 import com.phapalesai.dhanapala.domain.BudgetCalculator
@@ -94,13 +93,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
     private fun moneyTipFor(transactions: List<TransactionEntity>): String {
-        val isFoodDeliveryContext = transactions.take(5).any { tx ->
-            tx.type == TransactionType.DEBIT &&
-                (tx.description?.let { CategoryGuesser.isFoodDelivery(it) } == true)
-        }
+        val recentCategory = transactions.firstOrNull { it.type == TransactionType.DEBIT }?.category
         val today = LocalDate.now().toEpochDay()
-        val seed = today + if (isFoodDeliveryContext) 1_000_000 else 0
-        return MoneySavingTips.random(isFoodDeliveryContext, Random(seed))
+        val seed = today + (recentCategory?.hashCode() ?: 0)
+        return MoneySavingTips.random(recentCategory, Random(seed))
     }
 
     fun onSmsPermissionResult(granted: Boolean) {
