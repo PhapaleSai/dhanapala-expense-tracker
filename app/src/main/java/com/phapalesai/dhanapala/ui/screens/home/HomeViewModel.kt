@@ -11,6 +11,7 @@ import com.phapalesai.dhanapala.domain.BhaiMessageEngine
 import com.phapalesai.dhanapala.domain.BudgetCalculator
 import com.phapalesai.dhanapala.domain.MoneyJokes
 import com.phapalesai.dhanapala.domain.MoneySavingTips
+import com.phapalesai.dhanapala.domain.WelcomeMessages
 import com.phapalesai.dhanapala.domain.roastLanguageEnum
 import com.phapalesai.dhanapala.domain.roastLevelEnum
 import com.phapalesai.dhanapala.util.DateUtils
@@ -36,6 +37,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val smsReader = app.smsReader
     private val alertService = app.transactionAlertService
     private val jokeSeed = Random.nextInt()
+    private val welcomeSeed = Random.nextInt()
 
     private val zone = ZoneId.systemDefault()
     private val nowMillis = System.currentTimeMillis()
@@ -86,6 +88,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             hasSmsPermission = hasSmsPermission,
             moneyTip = moneyTipFor(transactions),
             moneyJoke = MoneyJokes.random(settings.roastLanguageEnum, Random(jokeSeed)),
+            welcomeMessage = WelcomeMessages.random(settings.roastLanguageEnum, Random(welcomeSeed)),
             periodStart = periodStart,
             periodEnd = periodEnd
         )

@@ -85,6 +85,11 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
             context.checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
         )
     }
+    var hasReceiveSmsPermission by remember {
+        mutableStateOf(
+            context.checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+        )
+    }
     // RECEIVE_SMS is requested alongside READ_SMS so the live SmsReceiver can
     // fire and notify the moment a transaction SMS arrives, not just when
     // the user next opens the app.
@@ -93,13 +98,35 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
     ) { results ->
         val granted = results[Manifest.permission.READ_SMS] == true
         hasPermission = granted
+        hasReceiveSmsPermission = results[Manifest.permission.RECEIVE_SMS] == true
         viewModel.onSmsPermissionResult(granted)
     }
     val requestSmsPermissions = {
         permissionLauncher.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS))
     }
 
+    // Covers users upgrading from a version that only ever asked for
+    // READ_SMS: they'd otherwise never be prompted for RECEIVE_SMS and the
+    // live receiver would silently never fire.
+    LaunchedEffect(hasPermission, hasReceiveSmsPermission) {
+        if (hasPermission && !hasReceiveSmsPermission) {
+            requestSmsPermissions()
+        }
+    }
+
     Scaffold { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
+                )
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -108,46 +135,60 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    val monthName = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.getDefault())
-                        .uppercase(Locale.getDefault())
-                    Text(
-                        text = "$monthName ${LocalDate.now().year}",
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                    val greeting = Greeting.forTime()
-                    Text(
-                        text = if (state.settings.userName.isNotBlank()) {
-                            "$greeting, ${state.settings.userName} 👋"
-                        } else {
-                            "$greeting 👋"
-                        },
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-                IconButton(
-                    onClick = {
-                        if (hasPermission) viewModel.scanSms() else requestSmsPermissions()
-                    }
+            EnterAnimated(delayMillis = 0) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (state.isScanning) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                    } else {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Scan SMS", tint = MaterialTheme.colorScheme.primary)
+                    Column {
+                        val monthName = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.getDefault())
+                            .uppercase(Locale.getDefault())
+                        Text(
+                            text = "$monthName ${LocalDate.now().year}",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                        val greeting = Greeting.forTime()
+                        Text(
+                            text = if (state.settings.userName.isNotBlank()) {
+                                "$greeting, ${state.settings.userName} 👋"
+                            } else {
+                                "$greeting 👋"
+                            },
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                brush = Brush.linearGradient(
+                                    listOf(MaterialTheme.colorScheme.primary, DhanapalaGold)
+                                )
+                            ),
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        if (state.welcomeMessage != null) {
+                            Text(
+                                text = state.welcomeMessage!!,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.app_name),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            if (hasPermission) viewModel.scanSms() else requestSmsPermissions()
+                        }
+                    ) {
+                        if (state.isScanning) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        } else {
+                            Icon(Icons.Filled.Refresh, contentDescription = "Scan SMS", tint = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
             }
 
-            EnterAnimated(delayMillis = 0) {
+            EnterAnimated(delayMillis = 40) {
                 ActionTilesRow(
                     hasPermission = hasPermission,
                     onScan = { if (hasPermission) viewModel.scanSms() else requestSmsPermissions() },
@@ -156,10 +197,10 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
             }
 
             if (state.settings.userName.isBlank()) {
-                EnterAnimated(delayMillis = 40) { NamePromptCard(onSave = viewModel::setUserName) }
+                EnterAnimated(delayMillis = 80) { NamePromptCard(onSave = viewModel::setUserName) }
             }
 
-            EnterAnimated(delayMillis = 80) {
+            EnterAnimated(delayMillis = 120) {
                 if (!state.hasBudgetSet) {
                     SetBudgetCard(onSave = viewModel::setBudget, onSaveCustom = viewModel::setCustomBudget)
                 } else {
@@ -167,13 +208,13 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
                 }
             }
 
-            EnterAnimated(delayMillis = 140) { MoneyJokeCard(state.moneyJoke) }
+            EnterAnimated(delayMillis = 180) { MoneyJokeCard(state.moneyJoke) }
 
-            EnterAnimated(delayMillis = 180) { BhaiMeterCard(state.bhaiMessage) }
+            EnterAnimated(delayMillis = 220) { BhaiMeterCard(state.bhaiMessage) }
 
-            EnterAnimated(delayMillis = 220) { MoneyTipCard(state.moneyTip) }
+            EnterAnimated(delayMillis = 260) { MoneyTipCard(state.moneyTip) }
 
-            EnterAnimated(delayMillis = 260) {
+            EnterAnimated(delayMillis = 300) {
                 ScanSmsCard(
                     hasPermission = hasPermission,
                     isScanning = state.isScanning,
@@ -183,7 +224,8 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
                 )
             }
 
-            EnterAnimated(delayMillis = 300) { RecentTransactionsCard(state.recentTransactions) }
+            EnterAnimated(delayMillis = 340) { RecentTransactionsCard(state.recentTransactions) }
+        }
         }
     }
 }
@@ -721,21 +763,23 @@ private fun RecentTransactionsCard(transactions: List<TransactionEntity>) {
             if (transactions.isEmpty()) {
                 Text("No transactions yet this month.", style = MaterialTheme.typography.bodyMedium)
             } else {
-                transactions.forEach { tx ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("${categoryEmoji(tx.category)} ${tx.category}")
-                        val sign = if (tx.type == TransactionType.DEBIT) "-" else "+"
-                        Text(
-                            text = "$sign${CurrencyFormat.rupees(tx.amount)}",
-                            color = if (tx.type == TransactionType.DEBIT) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.primary
-                            }
-                        )
+                transactions.forEachIndexed { index, tx ->
+                    EnterAnimated(delayMillis = 380 + index * 40) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("${categoryEmoji(tx.category)} ${tx.category}")
+                            val sign = if (tx.type == TransactionType.DEBIT) "-" else "+"
+                            Text(
+                                text = "$sign${CurrencyFormat.rupees(tx.amount)}",
+                                color = if (tx.type == TransactionType.DEBIT) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    MaterialTheme.colorScheme.primary
+                                }
+                            )
+                        }
                     }
                 }
             }
