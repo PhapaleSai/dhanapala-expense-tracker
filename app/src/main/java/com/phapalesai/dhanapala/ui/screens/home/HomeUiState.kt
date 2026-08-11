@@ -17,6 +17,7 @@ data class HomeUiState(
     val lastScanResult: ScanResult? = null,
     val hasSmsPermission: Boolean = false,
     val moneyTip: String? = null,
+    val moneyJoke: String? = null,
     val periodStart: LocalDate? = null,
     val periodEnd: LocalDate? = null
 )

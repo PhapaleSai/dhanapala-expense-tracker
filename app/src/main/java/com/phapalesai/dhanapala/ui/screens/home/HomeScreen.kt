@@ -17,13 +17,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -39,12 +45,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -58,8 +66,10 @@ import com.phapalesai.dhanapala.R
 import com.phapalesai.dhanapala.data.local.TransactionEntity
 import com.phapalesai.dhanapala.data.local.TransactionType
 import com.phapalesai.dhanapala.ui.categoryEmoji
+import com.phapalesai.dhanapala.ui.theme.DhanapalaGold
 import com.phapalesai.dhanapala.util.CurrencyFormat
 import com.phapalesai.dhanapala.util.Greeting
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -75,11 +85,18 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
             context.checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
         )
     }
+    // RECEIVE_SMS is requested alongside READ_SMS so the live SmsReceiver can
+    // fire and notify the moment a transaction SMS arrives, not just when
+    // the user next opens the app.
     val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val granted = results[Manifest.permission.READ_SMS] == true
         hasPermission = granted
         viewModel.onSmsPermissionResult(granted)
+    }
+    val requestSmsPermissions = {
+        permissionLauncher.launch(arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS))
     }
 
     Scaffold { innerPadding ->
@@ -119,7 +136,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
                 }
                 IconButton(
                     onClick = {
-                        if (hasPermission) viewModel.scanSms() else permissionLauncher.launch(Manifest.permission.READ_SMS)
+                        if (hasPermission) viewModel.scanSms() else requestSmsPermissions()
                     }
                 ) {
                     if (state.isScanning) {
@@ -130,35 +147,91 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
                 }
             }
 
-            ActionTilesRow(
-                hasPermission = hasPermission,
-                onScan = { if (hasPermission) viewModel.scanSms() else permissionLauncher.launch(Manifest.permission.READ_SMS) },
-                onAddTransaction = onAddTransaction
-            )
+            EnterAnimated(delayMillis = 0) {
+                ActionTilesRow(
+                    hasPermission = hasPermission,
+                    onScan = { if (hasPermission) viewModel.scanSms() else requestSmsPermissions() },
+                    onAddTransaction = onAddTransaction
+                )
+            }
 
             if (state.settings.userName.isBlank()) {
-                NamePromptCard(onSave = viewModel::setUserName)
+                EnterAnimated(delayMillis = 40) { NamePromptCard(onSave = viewModel::setUserName) }
             }
 
-            if (!state.hasBudgetSet) {
-                SetBudgetCard(onSave = viewModel::setBudget, onSaveCustom = viewModel::setCustomBudget)
-            } else {
-                BudgetCard(state, onEditBudget = viewModel::editActiveBudgetPeriod)
+            EnterAnimated(delayMillis = 80) {
+                if (!state.hasBudgetSet) {
+                    SetBudgetCard(onSave = viewModel::setBudget, onSaveCustom = viewModel::setCustomBudget)
+                } else {
+                    BudgetCard(state, onEditBudget = viewModel::editActiveBudgetPeriod)
+                }
             }
 
-            BhaiMeterCard(state.bhaiMessage)
+            EnterAnimated(delayMillis = 140) { MoneyJokeCard(state.moneyJoke) }
 
-            MoneyTipCard(state.moneyTip)
+            EnterAnimated(delayMillis = 180) { BhaiMeterCard(state.bhaiMessage) }
 
-            ScanSmsCard(
-                hasPermission = hasPermission,
-                isScanning = state.isScanning,
-                lastScanResult = state.lastScanResult,
-                onRequestPermission = { permissionLauncher.launch(Manifest.permission.READ_SMS) },
-                onScan = viewModel::scanSms
+            EnterAnimated(delayMillis = 220) { MoneyTipCard(state.moneyTip) }
+
+            EnterAnimated(delayMillis = 260) {
+                ScanSmsCard(
+                    hasPermission = hasPermission,
+                    isScanning = state.isScanning,
+                    lastScanResult = state.lastScanResult,
+                    onRequestPermission = { requestSmsPermissions() },
+                    onScan = viewModel::scanSms
+                )
+            }
+
+            EnterAnimated(delayMillis = 300) { RecentTransactionsCard(state.recentTransactions) }
+        }
+    }
+}
+
+/** Staggered fade + slide-up entrance for home cards, once per composition. */
+@Composable
+private fun EnterAnimated(delayMillis: Int, content: @Composable () -> Unit) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(delayMillis.toLong())
+        visible = true
+    }
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(450)) + slideInVertically(tween(450)) { it / 5 }
+    ) {
+        content()
+    }
+}
+
+/** Gradient halo + hairline border, the premium "glow" treatment used across Home cards. */
+@Composable
+private fun GlowCard(
+    modifier: Modifier = Modifier,
+    glowColor: Color = MaterialTheme.colorScheme.primary,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(4.dp)
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(glowColor.copy(alpha = 0.16f), Color.Transparent),
+                    radius = 420f
+                )
             )
-
-            RecentTransactionsCard(state.recentTransactions)
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            border = BorderStroke(
+                1.dp,
+                Brush.linearGradient(listOf(glowColor.copy(alpha = 0.45f), Color.Transparent))
+            )
+        ) {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                content()
+            }
         }
     }
 }
@@ -194,12 +267,17 @@ private fun ActionTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (isPressed) 0.95f else 1f, animationSpec = tween(120), label = "tileScale")
+
     Box(
         modifier = modifier
+            .scale(scale)
             .height(84.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(Brush.linearGradient(colors))
-            .clickable(onClick = onClick)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
             .padding(14.dp)
     ) {
         Column(
@@ -510,11 +588,18 @@ private fun BudgetCard(state: HomeUiState, onEditBudget: (LocalDate, LocalDate, 
 @Composable
 private fun MoneyTipCard(tip: String?) {
     if (tip == null) return
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("💡 Money-Saving Tip", style = MaterialTheme.typography.titleMedium)
-            Text(text = tip, style = MaterialTheme.typography.bodyMedium)
-        }
+    GlowCard(glowColor = DhanapalaGold) {
+        Text("💡 Money-Saving Tip", style = MaterialTheme.typography.titleMedium)
+        Text(text = tip, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun MoneyJokeCard(joke: String?) {
+    if (joke == null) return
+    GlowCard(glowColor = Color(0xFFFF8A65)) {
+        Text("😂 Money Joke", style = MaterialTheme.typography.titleMedium)
+        Text(text = joke, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -586,11 +671,9 @@ private fun LabeledAmount(label: String, value: String) {
 @Composable
 private fun BhaiMeterCard(message: String?) {
     if (message == null) return
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("💰 Bhai Meter", style = MaterialTheme.typography.titleMedium)
-            Text(text = message, style = MaterialTheme.typography.bodyLarge)
-        }
+    GlowCard {
+        Text("💰 Bhai Meter", style = MaterialTheme.typography.titleMedium)
+        Text(text = message, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

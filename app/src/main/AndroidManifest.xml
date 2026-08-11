@@ -3,6 +3,7 @@
 
     <!-- Read-only: this app never sends, edits, or deletes SMS. -->
     <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -33,6 +34,19 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Catches bank/UPI SMS the instant they arrive so spend/credit alerts
+             don't wait for the user to open the app. exported=true is required
+             for the system to deliver SMS_RECEIVED; only the platform (holding
+             BROADCAST_SMS) can send that broadcast. -->
+        <receiver
+            android:name=".receiver.SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

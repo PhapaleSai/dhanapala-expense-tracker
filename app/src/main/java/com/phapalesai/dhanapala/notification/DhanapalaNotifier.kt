@@ -13,8 +13,9 @@ import com.phapalesai.dhanapala.util.CurrencyFormat
 import kotlin.random.Random
 
 /**
- * Wraps Android's notification APIs. Deliberately sparing — only large
- * expenses and budget-threshold crossings notify, never every transaction.
+ * Wraps Android's notification APIs. Fires for every parsed debit/credit
+ * SMS (caught live via SmsReceiver, or on a manual rescan) plus
+ * budget-threshold crossings — see TransactionAlertService for the caller.
  */
 class DhanapalaNotifier(private val context: Context) {
 
@@ -34,7 +35,7 @@ class DhanapalaNotifier(private val context: Context) {
         }
     }
 
-    fun notifyLargeExpense(amount: Double, bhaiMessage: String) {
+    fun notifyExpense(amount: Double, bhaiMessage: String) {
         show(
             title = "💸 Bhai Alert!",
             text = "${CurrencyFormat.rupees(amount)} spent.\n$bhaiMessage"

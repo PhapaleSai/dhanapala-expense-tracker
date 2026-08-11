@@ -4,14 +4,12 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.phapalesai.dhanapala.DhanapalaApplication
-import com.phapalesai.dhanapala.data.local.BudgetEntity
 import com.phapalesai.dhanapala.data.local.TransactionEntity
 import com.phapalesai.dhanapala.data.local.TransactionType
 import com.phapalesai.dhanapala.data.repository.ScanResult
 import com.phapalesai.dhanapala.domain.BhaiMessageEngine
 import com.phapalesai.dhanapala.domain.BudgetCalculator
-import com.phapalesai.dhanapala.domain.BudgetNotificationDecider
-import com.phapalesai.dhanapala.domain.BudgetNotifyTier
+import com.phapalesai.dhanapala.domain.MoneyJokes
 import com.phapalesai.dhanapala.domain.MoneySavingTips
 import com.phapalesai.dhanapala.domain.roastLanguageEnum
 import com.phapalesai.dhanapala.domain.roastLevelEnum
@@ -27,7 +25,6 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
-import kotlin.math.roundToInt
 import kotlin.random.Random
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -37,7 +34,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val transactionRepo = app.transactionRepository
     private val budgetRepo = app.budgetRepository
     private val smsReader = app.smsReader
-    private val notifier = app.notifier
+    private val alertService = app.transactionAlertService
+    private val jokeSeed = Random.nextInt()
 
     private val zone = ZoneId.systemDefault()
     private val nowMillis = System.currentTimeMillis()
@@ -87,6 +85,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             lastScanResult = lastScanResult,
             hasSmsPermission = hasSmsPermission,
             moneyTip = moneyTipFor(transactions),
+            moneyJoke = MoneyJokes.random(settings.roastLanguageEnum, Random(jokeSeed)),
             periodStart = periodStart,
             periodEnd = periodEnd
         )
@@ -111,7 +110,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val result = transactionRepo.scanMessages(messages)
             _lastScanResult.value = result
             _isScanning.value = false
-            maybeNotify(result)
+            alertService.notifyForScan(result)
         }
     }
 
@@ -154,49 +153,4 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun maybeNotify(result: ScanResult) {
-        val settings = budgetRepo.observeSettings().first()
-        if (!settings.notificationsEnabled) return
-
-        for (tx in result.insertedTransactions) {
-            when {
-                tx.type == TransactionType.DEBIT && tx.amount >= settings.largeExpenseThreshold ->
-                    notifier.notifyLargeExpense(
-                        tx.amount,
-                        BhaiMessageEngine.spendingReaction(
-                            tx.amount,
-                            settings.largeExpenseThreshold,
-                            settings.roastLanguageEnum,
-                            settings.roastLevelEnum
-                        )
-                    )
-                tx.type == TransactionType.CREDIT && BhaiMessageEngine.isLikelySalary(tx.amount) ->
-                    notifier.notifySalaryCredit(tx.amount, BhaiMessageEngine.salaryMessage(settings.roastLanguageEnum))
-                tx.type == TransactionType.CREDIT && tx.amount >= 100 ->
-                    notifier.notifyMoneyReceived(tx.amount, BhaiMessageEngine.moneyReceivedMessage(settings.roastLanguageEnum))
-            }
-        }
-
-        val budgetEntity: BudgetEntity = budgetRepo.getActiveOnce(nowMillis) ?: return
-        if (budgetEntity.amount <= 0) return
-        val periodTransactions = transactionRepo.getBetweenOnce(budgetEntity.startDateMillis, budgetEntity.endDateMillis)
-        val periodEnd = java.time.Instant.ofEpochMilli(budgetEntity.endDateMillis).atZone(zone).toLocalDate()
-        val summary = BudgetCalculator.calculate(budgetEntity.amount, periodTransactions, periodEnd = periodEnd)
-        val tier = BudgetNotificationDecider.decide(
-            summary.percentUsed,
-            budgetEntity.notified80,
-            budgetEntity.notifiedExceeded
-        )
-        when (tier) {
-            BudgetNotifyTier.EXCEEDED -> {
-                notifier.notifyBudgetExceeded()
-                budgetRepo.markNotifiedExceeded(budgetEntity.id)
-            }
-            BudgetNotifyTier.EIGHTY_PERCENT -> {
-                notifier.notifyBudgetThreshold(summary.percentUsed.roundToInt(), summary.remaining)
-                budgetRepo.markNotified80(budgetEntity.id)
-            }
-            BudgetNotifyTier.NONE -> Unit
-        }
-    }
 }
