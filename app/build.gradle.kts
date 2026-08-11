@@ -25,8 +25,8 @@ android {
         applicationId = "com.phapalesai.dhanapala"
         minSdk = 26
         targetSdk = 34
-        versionCode = 21
-        versionName = "1.6.0"
+        versionCode = 22
+        versionName = "1.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -88,6 +88,8 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.0")
     implementation("androidx.fragment:fragment-ktx:1.6.2")
     implementation("androidx.biometric:biometric:1.1.0")
+    implementation("com.google.mlkit:text-recognition:16.0.0")
+    implementation("androidx.glance:glance-appwidget:1.1.0")
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")

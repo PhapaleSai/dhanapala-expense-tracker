@@ -1,7 +1,9 @@
 package com.phapalesai.dhanapala
 
 import android.app.Application
+import com.phapalesai.dhanapala.data.backup.BackupManager
 import com.phapalesai.dhanapala.data.local.AppDatabase
+import com.phapalesai.dhanapala.data.repository.AccountNicknameRepository
 import com.phapalesai.dhanapala.data.repository.BudgetRepository
 import com.phapalesai.dhanapala.data.repository.CategoryBudgetRepository
 import com.phapalesai.dhanapala.data.repository.TransactionRepository
@@ -14,9 +16,13 @@ class DhanapalaApplication : Application() {
     val transactionRepository by lazy { TransactionRepository(database.transactionDao()) }
     val budgetRepository by lazy { BudgetRepository(database.budgetDao(), database.appSettingsDao()) }
     val categoryBudgetRepository by lazy { CategoryBudgetRepository(database.categoryBudgetDao()) }
+    val accountNicknameRepository by lazy { AccountNicknameRepository(database.accountNicknameDao()) }
     val smsReader by lazy { SmsReader(this) }
     val notifier by lazy { DhanapalaNotifier(this) }
     val transactionAlertService by lazy {
-        TransactionAlertService(transactionRepository, budgetRepository, categoryBudgetRepository, notifier)
+        TransactionAlertService(this, transactionRepository, budgetRepository, categoryBudgetRepository, notifier)
+    }
+    val backupManager by lazy {
+        BackupManager(transactionRepository, budgetRepository, categoryBudgetRepository, accountNicknameRepository)
     }
 }

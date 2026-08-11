@@ -1,5 +1,6 @@
 package com.phapalesai.dhanapala.notification
 
+import android.content.Context
 import com.phapalesai.dhanapala.data.local.TransactionType
 import com.phapalesai.dhanapala.data.repository.BudgetRepository
 import com.phapalesai.dhanapala.data.repository.CategoryBudgetRepository
@@ -11,6 +12,7 @@ import com.phapalesai.dhanapala.domain.BudgetNotificationDecider
 import com.phapalesai.dhanapala.domain.BudgetNotifyTier
 import com.phapalesai.dhanapala.domain.roastLanguageEnum
 import com.phapalesai.dhanapala.domain.roastLevelEnum
+import com.phapalesai.dhanapala.widget.WidgetUpdater
 import kotlinx.coroutines.flow.first
 import java.time.Instant
 import java.time.ZoneId
@@ -23,6 +25,7 @@ import kotlin.math.roundToInt
  * ones crossing the large-expense threshold.
  */
 class TransactionAlertService(
+    private val context: Context,
     private val transactionRepo: TransactionRepository,
     private val budgetRepo: BudgetRepository,
     private val categoryBudgetRepo: CategoryBudgetRepository,
@@ -31,6 +34,10 @@ class TransactionAlertService(
     private val zone = ZoneId.systemDefault()
 
     suspend fun notifyForScan(result: ScanResult) {
+        if (result.insertedTransactions.isNotEmpty()) {
+            WidgetUpdater.refresh(context)
+        }
+
         val settings = budgetRepo.observeSettings().first()
         if (!settings.notificationsEnabled) return
 

@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.phapalesai.dhanapala.DhanapalaApplication
 import com.phapalesai.dhanapala.data.local.TransactionType
 import com.phapalesai.dhanapala.domain.BudgetCalculator
+import com.phapalesai.dhanapala.domain.RecurringDetector
+import com.phapalesai.dhanapala.domain.RecurringItem
 import com.phapalesai.dhanapala.domain.SpendingInsights
 import com.phapalesai.dhanapala.util.DateUtils
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,7 +37,9 @@ data class AnalyticsUiState(
     val topDay: DailySpend? = null,
     val projectedPeriodEndSpend: Double = 0.0,
     val weekdayAvgSpend: Double = 0.0,
-    val weekendAvgSpend: Double = 0.0
+    val weekendAvgSpend: Double = 0.0,
+    val recurringItems: List<RecurringItem> = emptyList(),
+    val recurringMonthlyTotal: Double = 0.0
 )
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -52,7 +56,11 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
         app.transactionRepository.observeBetween(range.first, range.second)
     }
 
-    val uiState: StateFlow<AnalyticsUiState> = combine(periodTransactions, activeBudget) { transactions, budgetEntity ->
+    val uiState: StateFlow<AnalyticsUiState> = combine(
+        periodTransactions,
+        activeBudget,
+        app.transactionRepository.observeAll()
+    ) { transactions, budgetEntity, allTransactions ->
         val debits = transactions.filter { it.type == TransactionType.DEBIT }
         val totalSpend = debits.sumOf { it.amount }.coerceAtLeast(0.01)
 
@@ -86,6 +94,9 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
         }
         val weekdayWeekend = SpendingInsights.weekdayVsWeekendAverage(byDay.associate { it.date to it.amount })
 
+        val recurringItems = RecurringDetector.detect(allTransactions)
+        val recurringMonthlyTotal = RecurringDetector.estimatedMonthlyTotal(recurringItems)
+
         AnalyticsUiState(
             byCategory = byCategory,
             byDay = byDay,
@@ -100,7 +111,9 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
             topDay = byDay.maxByOrNull { it.amount },
             projectedPeriodEndSpend = projectedPeriodEndSpend,
             weekdayAvgSpend = weekdayWeekend.weekdayAvg,
-            weekendAvgSpend = weekdayWeekend.weekendAvg
+            weekendAvgSpend = weekdayWeekend.weekendAvg,
+            recurringItems = recurringItems,
+            recurringMonthlyTotal = recurringMonthlyTotal
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsUiState())
 }

@@ -99,9 +99,35 @@ val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
     }
 }
 
+/**
+ * Adds the account-nickname table (multi-account tracking) and a
+ * receiptPhotoPath column on transactions (OCR receipt scanning). Both
+ * additive, no data conversion needed.
+ */
+val MIGRATION_6_7 = object : androidx.room.migration.Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE account_nicknames (
+                senderPattern TEXT NOT NULL,
+                displayName TEXT NOT NULL,
+                PRIMARY KEY(senderPattern)
+            )
+            """.trimIndent()
+        )
+        db.execSQL("ALTER TABLE transactions ADD COLUMN receiptPhotoPath TEXT")
+    }
+}
+
 @Database(
-    entities = [TransactionEntity::class, BudgetEntity::class, AppSettingsEntity::class, CategoryBudgetEntity::class],
-    version = 6,
+    entities = [
+        TransactionEntity::class,
+        BudgetEntity::class,
+        AppSettingsEntity::class,
+        CategoryBudgetEntity::class,
+        AccountNicknameEntity::class
+    ],
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -111,6 +137,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
     abstract fun appSettingsDao(): AppSettingsDao
     abstract fun categoryBudgetDao(): CategoryBudgetDao
+    abstract fun accountNicknameDao(): AccountNicknameDao
 
     companion object {
         @Volatile
@@ -123,7 +150,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "dhanapala.db"
                 )
-                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     // Safety net only for schema jumps with no migration path
                     // (e.g. very old pre-release installs) — real installs from
                     // here on go through explicit migrations so data survives.

@@ -1,5 +1,7 @@
 package com.phapalesai.dhanapala.ui.screens.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,7 +37,11 @@ import com.phapalesai.dhanapala.domain.roastLanguageEnum
 import com.phapalesai.dhanapala.domain.roastLevelEnum
 import com.phapalesai.dhanapala.ui.lock.canUseBiometricLock
 import android.content.Intent
+import android.net.Uri
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private fun shareCsv(context: android.content.Context, csv: String) {
     val file = File(context.cacheDir, "dhanapala-export-${System.currentTimeMillis()}.csv")
@@ -49,7 +56,12 @@ private fun shareCsv(context: android.content.Context, csv: String) {
 }
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onViewRawSms: () -> Unit = {}) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel = viewModel(),
+    onViewRawSms: () -> Unit = {},
+    onSplitBill: () -> Unit = {},
+    onManageAccounts: () -> Unit = {}
+) {
     val context = LocalContext.current
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     var thresholdText by remember(settings.largeExpenseThreshold) {
@@ -57,6 +69,26 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onViewRawSms: () 
     }
     var showResetConfirm by remember { mutableStateOf(false) }
     var nameText by remember(settings.userName) { mutableStateOf(settings.userName) }
+
+    var showExportPassphraseDialog by remember { mutableStateOf(false) }
+    var showImportPassphraseDialog by remember { mutableStateOf(false) }
+    var pendingBackupUri by remember { mutableStateOf<Uri?>(null) }
+    var backupStatus by remember { mutableStateOf<String?>(null) }
+
+    val createBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        showExportPassphraseDialog = true
+        pendingBackupUri = uri // reused as the export destination while the passphrase dialog is up
+    }
+    val openBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        pendingBackupUri = uri
+        showImportPassphraseDialog = true
+    }
 
     Scaffold { innerPadding ->
         Column(
@@ -193,6 +225,14 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onViewRawSms: () 
 
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Tools", style = MaterialTheme.typography.titleMedium)
+                    OutlinedButton(onClick = onSplitBill, modifier = Modifier.fillMaxWidth()) { Text("🧾 Split a Bill") }
+                    OutlinedButton(onClick = onManageAccounts, modifier = Modifier.fillMaxWidth()) { Text("🏦 Manage Accounts") }
+                }
+            }
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Export", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Generated locally as a CSV and handed to the share sheet — never uploaded.",
@@ -201,6 +241,36 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onViewRawSms: () 
                     Button(onClick = { viewModel.exportCsv { csv -> shareCsv(context, csv) } }) {
                         Text("Export Data")
                     }
+                }
+            }
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Backup & Restore", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "A full, password-encrypted snapshot of everything -- transactions, budgets, settings. " +
+                            "Restoring replaces all current data. Nothing leaves the device, and the password " +
+                            "never gets stored anywhere -- forgetting it means the backup can't be decrypted.",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    backupStatus?.let {
+                        Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                    Button(
+                        onClick = {
+                            backupStatus = null
+                            val filename = "dhanpal-backup-${SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())}.dhpb"
+                            createBackupLauncher.launch(filename)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Backup Data") }
+                    OutlinedButton(
+                        onClick = {
+                            backupStatus = null
+                            openBackupLauncher.launch(arrayOf("*/*"))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Restore from Backup") }
                 }
             }
 
@@ -238,6 +308,126 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onViewRawSms: () 
             }
         )
     }
+
+    if (showExportPassphraseDialog) {
+        PassphraseDialog(
+            title = "Set a backup password",
+            description = "You'll need this exact password to restore this backup later. It's never saved anywhere.",
+            requireConfirmation = true,
+            confirmLabel = "Encrypt & Save",
+            onDismiss = {
+                showExportPassphraseDialog = false
+                pendingBackupUri = null
+            },
+            onConfirm = { passphrase ->
+                val uri = pendingBackupUri
+                showExportPassphraseDialog = false
+                if (uri != null) {
+                    viewModel.exportEncryptedBackup(passphrase) { result ->
+                        result.onSuccess { bytes ->
+                            runCatching {
+                                context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                            }.onSuccess {
+                                backupStatus = "Backup saved."
+                            }.onFailure {
+                                backupStatus = "Couldn't write the backup file: ${it.message}"
+                            }
+                        }.onFailure {
+                            backupStatus = "Export failed: ${it.message}"
+                        }
+                    }
+                }
+                pendingBackupUri = null
+            }
+        )
+    }
+
+    if (showImportPassphraseDialog) {
+        PassphraseDialog(
+            title = "Restore from backup",
+            description = "This replaces every transaction, budget, and setting currently on this device. Enter the password this backup was encrypted with.",
+            requireConfirmation = false,
+            confirmLabel = "Restore",
+            onDismiss = {
+                showImportPassphraseDialog = false
+                pendingBackupUri = null
+            },
+            onConfirm = { passphrase ->
+                val uri = pendingBackupUri
+                showImportPassphraseDialog = false
+                if (uri != null) {
+                    val bytes = runCatching {
+                        context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    }.getOrNull()
+                    if (bytes == null) {
+                        backupStatus = "Couldn't read that file."
+                    } else {
+                        viewModel.importEncryptedBackup(bytes, passphrase) { result ->
+                            result.onSuccess {
+                                backupStatus = "Restore complete."
+                            }.onFailure {
+                                backupStatus = "Restore failed -- wrong password, or not a Dhanpal backup file."
+                            }
+                        }
+                    }
+                }
+                pendingBackupUri = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun PassphraseDialog(
+    title: String,
+    description: String,
+    requireConfirmation: Boolean,
+    confirmLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var passphrase by remember { mutableStateOf("") }
+    var confirmPassphrase by remember { mutableStateOf("") }
+    val mismatch = requireConfirmation && confirmPassphrase.isNotEmpty() && passphrase != confirmPassphrase
+    val canConfirm = passphrase.length >= 4 && (!requireConfirmation || passphrase == confirmPassphrase)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(description, style = MaterialTheme.typography.labelSmall)
+                OutlinedTextField(
+                    value = passphrase,
+                    onValueChange = { passphrase = it },
+                    label = { Text("Password") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (requireConfirmation) {
+                    OutlinedTextField(
+                        value = confirmPassphrase,
+                        onValueChange = { confirmPassphrase = it },
+                        label = { Text("Confirm password") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        isError = mismatch,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (mismatch) {
+                        Text("Passwords don't match.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(passphrase) }, enabled = canConfirm) { Text(confirmLabel) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

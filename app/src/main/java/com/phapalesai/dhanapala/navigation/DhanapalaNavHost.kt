@@ -25,10 +25,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.phapalesai.dhanapala.ui.screens.accounts.AccountsScreen
 import com.phapalesai.dhanapala.ui.screens.analytics.AnalyticsScreen
 import com.phapalesai.dhanapala.ui.screens.home.HomeScreen
 import com.phapalesai.dhanapala.ui.screens.messages.MessagesScreen
 import com.phapalesai.dhanapala.ui.screens.settings.SettingsScreen
+import com.phapalesai.dhanapala.ui.screens.split.SplitCalculatorScreen
 import com.phapalesai.dhanapala.ui.screens.transactions.TransactionsScreen
 
 object Routes {
@@ -37,6 +39,8 @@ object Routes {
     const val ANALYTICS = "analytics"
     const val SETTINGS = "settings"
     const val MESSAGES = "messages"
+    const val SPLIT_CALCULATOR = "split_calculator"
+    const val ACCOUNTS = "accounts"
 }
 
 private data class BottomTab(val route: String, val label: String, val icon: ImageVector)
@@ -90,9 +94,15 @@ fun DhanapalaNavHost() {
             composable(Routes.TRANSACTIONS) { TransactionsScreen() }
             composable(Routes.ANALYTICS) { AnalyticsScreen() }
             composable(Routes.SETTINGS) {
-                SettingsScreen(onViewRawSms = { navController.navigate(Routes.MESSAGES) })
+                SettingsScreen(
+                    onViewRawSms = { navController.navigate(Routes.MESSAGES) },
+                    onSplitBill = { navController.navigate(Routes.SPLIT_CALCULATOR) },
+                    onManageAccounts = { navController.navigate(Routes.ACCOUNTS) }
+                )
             }
             composable(Routes.MESSAGES) { MessagesScreen() }
+            composable(Routes.SPLIT_CALCULATOR) { SplitCalculatorScreen() }
+            composable(Routes.ACCOUNTS) { AccountsScreen() }
         }
     }
 }

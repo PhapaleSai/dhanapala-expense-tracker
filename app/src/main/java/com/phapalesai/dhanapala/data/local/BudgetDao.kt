@@ -22,4 +22,10 @@ interface BudgetDao {
 
     @Query("UPDATE budgets SET notifiedExceeded = :value WHERE id = :id")
     suspend fun setNotifiedExceeded(id: Long, value: Boolean)
+
+    @Query("SELECT * FROM budgets")
+    suspend fun getAll(): List<BudgetEntity>
+
+    @Query("DELETE FROM budgets")
+    suspend fun deleteAll()
 }

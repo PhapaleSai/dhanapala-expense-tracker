@@ -1,5 +1,9 @@
 package com.phapalesai.dhanapala.ui.screens.transactions
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -30,6 +35,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenuItem
@@ -37,20 +43,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.phapalesai.dhanapala.data.local.Category
 import com.phapalesai.dhanapala.data.local.TransactionEntity
 import com.phapalesai.dhanapala.data.local.TransactionType
+import com.phapalesai.dhanapala.data.ocr.ReceiptScanner
+import com.phapalesai.dhanapala.domain.ReceiptTextParser
 import com.phapalesai.dhanapala.ui.categoryColor
 import com.phapalesai.dhanapala.ui.categoryEmoji
 import com.phapalesai.dhanapala.util.CurrencyFormat
+import kotlinx.coroutines.launch
+import java.io.File
 import java.text.DateFormat
 import java.util.Date
 
@@ -65,11 +78,62 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = viewModel()) {
     var editingTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
     var editingTags by remember { mutableStateOf<TransactionEntity?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var prefillAmount by remember { mutableStateOf<Double?>(null) }
+    var prefillPhotoPath by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var pendingPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingPhotoFile by remember { mutableStateOf<File?>(null) }
+
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        val file = pendingPhotoFile
+        val uri = pendingPhotoUri
+        if (success && file != null && uri != null) {
+            scope.launch {
+                try {
+                    val text = ReceiptScanner(context).recognizeText(uri)
+                    prefillAmount = ReceiptTextParser.extractTotal(text)
+                    prefillPhotoPath = file.absolutePath
+                    if (prefillAmount == null) {
+                        Toast.makeText(context, "Couldn't find an amount on the receipt -- enter it manually.", Toast.LENGTH_LONG).show()
+                    }
+                    showAddDialog = true
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Couldn't read the receipt: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        } else {
+            file?.delete()
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "Add transaction")
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SmallFloatingActionButton(
+                    onClick = {
+                        val receiptsDir = File(context.filesDir, "receipts").apply { mkdirs() }
+                        val file = File(receiptsDir, "receipt-${System.currentTimeMillis()}.jpg")
+                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                        pendingPhotoFile = file
+                        pendingPhotoUri = uri
+                        takePictureLauncher.launch(uri)
+                    }
+                ) {
+                    Icon(Icons.Filled.PhotoCamera, contentDescription = "Scan receipt")
+                }
+                FloatingActionButton(
+                    onClick = {
+                        prefillAmount = null
+                        prefillPhotoPath = null
+                        showAddDialog = true
+                    }
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add transaction")
+                }
             }
         }
     ) { innerPadding ->
@@ -201,10 +265,18 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = viewModel()) {
 
     if (showAddDialog) {
         AddManualTransactionDialog(
-            onDismiss = { showAddDialog = false },
-            onSave = { amount, type, category, description, tags ->
-                viewModel.addManual(amount, type, category, description, System.currentTimeMillis(), tags)
+            initialAmount = prefillAmount,
+            photoPath = prefillPhotoPath,
+            onDismiss = {
                 showAddDialog = false
+                prefillAmount = null
+                prefillPhotoPath = null
+            },
+            onSave = { amount, type, category, description, tags, photoPath ->
+                viewModel.addManual(amount, type, category, description, System.currentTimeMillis(), tags, photoPath)
+                showAddDialog = false
+                prefillAmount = null
+                prefillPhotoPath = null
             }
         )
     }
@@ -396,10 +468,12 @@ private fun EditTagsDialog(current: String, onDismiss: () -> Unit, onSave: (Stri
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddManualTransactionDialog(
+    initialAmount: Double? = null,
+    photoPath: String? = null,
     onDismiss: () -> Unit,
-    onSave: (amount: Double, type: TransactionType, category: String, description: String, tags: String) -> Unit
+    onSave: (amount: Double, type: TransactionType, category: String, description: String, tags: String, photoPath: String?) -> Unit
 ) {
-    var amountText by remember { mutableStateOf("") }
+    var amountText by remember { mutableStateOf(initialAmount?.let { "%.2f".format(it) } ?: "") }
     var type by remember { mutableStateOf(TransactionType.DEBIT) }
     var category by remember { mutableStateOf(Category.UNCATEGORIZED) }
     var customCategory by remember { mutableStateOf("") }
@@ -408,9 +482,16 @@ private fun AddManualTransactionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add manual transaction") },
+        title = { Text(if (photoPath != null) "Add transaction from receipt" else "Add manual transaction") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (photoPath != null) {
+                    Text(
+                        "📷 Receipt attached -- double-check the amount below.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
@@ -460,7 +541,7 @@ private fun AddManualTransactionDialog(
             TextButton(
                 onClick = {
                     val finalCategory = customCategory.trim().ifBlank { category }
-                    amountText.toDoubleOrNull()?.let { onSave(it, type, finalCategory, description, tags) }
+                    amountText.toDoubleOrNull()?.let { onSave(it, type, finalCategory, description, tags, photoPath) }
                 },
                 enabled = amountText.toDoubleOrNull() != null
             ) { Text("Save") }

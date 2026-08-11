@@ -17,4 +17,11 @@ class CategoryBudgetRepository(private val dao: CategoryBudgetDao) {
     suspend fun markNotifiedExceeded(id: Long) = dao.setNotifiedExceeded(id, true)
 
     suspend fun delete(id: Long) = dao.delete(id)
+
+    suspend fun getAllOnce(): List<CategoryBudgetEntity> = dao.getAll()
+
+    suspend fun replaceAll(items: List<CategoryBudgetEntity>) {
+        dao.deleteAll()
+        items.forEach { dao.upsert(it) }
+    }
 }

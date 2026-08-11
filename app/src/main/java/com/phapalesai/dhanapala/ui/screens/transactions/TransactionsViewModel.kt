@@ -103,7 +103,8 @@ class TransactionsViewModel(application: Application) : AndroidViewModel(applica
         category: String,
         description: String,
         dateMillis: Long,
-        tags: String = ""
+        tags: String = "",
+        receiptPhotoPath: String? = null
     ) {
         viewModelScope.launch {
             repo.addManual(
@@ -119,7 +120,8 @@ class TransactionsViewModel(application: Application) : AndroidViewModel(applica
                     category = category,
                     isManual = true,
                     createdAt = System.currentTimeMillis(),
-                    tags = tags.ifBlank { null }
+                    tags = tags.ifBlank { null },
+                    receiptPhotoPath = receiptPhotoPath
                 )
             )
         }

@@ -22,6 +22,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,6 +70,10 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel = viewModel()) {
 
             if (state.byDay.isNotEmpty()) {
                 SpendingInsightsCard(state)
+            }
+
+            if (state.recurringItems.isNotEmpty()) {
+                RecurringCard(state)
             }
 
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -221,6 +226,43 @@ private fun SpendingInsightsCard(state: AnalyticsUiState) {
                     Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RecurringCard(state: AnalyticsUiState) {
+    val formatter = remember { DateTimeFormatter.ofPattern("d MMM") }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("🔁 Recurring & Subscriptions", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Detected from your SMS history -- same amount, roughly the same gap each time.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            state.recurringItems.forEach { item ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("${categoryEmoji(item.category)} ${item.category}", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "${if (item.isMonthly) "Monthly" else "Weekly"} · next ~${item.nextExpectedDate.format(formatter)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(CurrencyFormat.rupees(item.amount), fontWeight = FontWeight.Bold)
+                }
+            }
+            Text(
+                "Estimated monthly total: ${CurrencyFormat.rupees(state.recurringMonthlyTotal)}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = DhanapalaGold
+            )
         }
     }
 }

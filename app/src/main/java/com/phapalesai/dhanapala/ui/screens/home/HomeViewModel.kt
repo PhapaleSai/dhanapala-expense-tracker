@@ -15,6 +15,7 @@ import com.phapalesai.dhanapala.domain.WelcomeMessages
 import com.phapalesai.dhanapala.domain.roastLanguageEnum
 import com.phapalesai.dhanapala.domain.roastLevelEnum
 import com.phapalesai.dhanapala.util.DateUtils
+import com.phapalesai.dhanapala.widget.WidgetUpdater
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -146,6 +147,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val range = DateUtils.monthRangeMillis(YearMonth.now())
                 budgetRepo.setBudget(range.first, range.last, amount)
             }
+            WidgetUpdater.refresh(getApplication())
         }
     }
 
@@ -155,6 +157,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val start = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
             val end = endDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
             budgetRepo.setBudget(start, end, amount)
+            WidgetUpdater.refresh(getApplication())
         }
     }
 
@@ -165,6 +168,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val start = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
             val end = endDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
             budgetRepo.setBudget(start, end, amount, existingId = active?.id)
+            WidgetUpdater.refresh(getApplication())
         }
     }
 

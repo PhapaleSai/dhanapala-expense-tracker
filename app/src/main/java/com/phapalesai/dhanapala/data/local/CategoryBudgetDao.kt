@@ -22,4 +22,10 @@ interface CategoryBudgetDao {
 
     @Query("DELETE FROM category_budgets WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("SELECT * FROM category_budgets")
+    suspend fun getAll(): List<CategoryBudgetEntity>
+
+    @Query("DELETE FROM category_budgets")
+    suspend fun deleteAll()
 }

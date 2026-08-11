@@ -25,5 +25,7 @@ data class TransactionEntity(
     val isManual: Boolean,
     val createdAt: Long,
     /** Comma-separated free-form tags, e.g. "GoaTrip,Diwali". Null/blank means untagged. */
-    val tags: String? = null
+    val tags: String? = null,
+    /** Path to a scanned receipt photo saved in app-private storage, if any. */
+    val receiptPhotoPath: String? = null
 )

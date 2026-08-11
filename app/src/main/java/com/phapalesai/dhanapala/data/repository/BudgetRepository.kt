@@ -33,4 +33,12 @@ class BudgetRepository(
     fun observeSettings(): Flow<AppSettingsEntity> = settingsDao.observe().map { it ?: AppSettingsEntity() }
 
     suspend fun updateSettings(settings: AppSettingsEntity) = settingsDao.upsert(settings)
+
+    suspend fun getAllBudgetsOnce(): List<BudgetEntity> = budgetDao.getAll()
+
+    /** Wipes and re-inserts every budget period, preserving ids so category_budgets.budgetId stays valid. */
+    suspend fun replaceAllBudgets(budgets: List<BudgetEntity>) {
+        budgetDao.deleteAll()
+        budgets.forEach { budgetDao.upsert(it) }
+    }
 }

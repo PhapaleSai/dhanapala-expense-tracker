@@ -82,6 +82,14 @@ class TransactionRepository(
 
     suspend fun deleteAll() = dao.deleteAll()
 
+    suspend fun getAllOnce(): List<TransactionEntity> = dao.getAll()
+
+    /** Wipes and re-inserts every transaction, preserving ids and dedupeHash so a re-scan won't duplicate anything. */
+    suspend fun replaceAll(transactions: List<TransactionEntity>) {
+        dao.deleteAll()
+        transactions.forEach { dao.insert(it) }
+    }
+
     /**
      * Re-runs category detection against every stored SMS-derived transaction.
      * Needed because CategoryGuesser's keyword dictionary keeps growing —
