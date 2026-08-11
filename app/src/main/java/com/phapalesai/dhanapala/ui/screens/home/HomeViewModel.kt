@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -34,6 +35,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as DhanapalaApplication
     private val transactionRepo = app.transactionRepository
     private val budgetRepo = app.budgetRepository
+    private val categoryBudgetRepo = app.categoryBudgetRepository
     private val smsReader = app.smsReader
     private val alertService = app.transactionAlertService
     private val jokeSeed = Random.nextInt()
@@ -55,13 +57,23 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         transactionRepo.observeBetween(range.first, range.second)
     }
 
+    private val categoryBudgetsForActivePeriod = activeBudget.flatMapLatest { budget ->
+        budget?.let { categoryBudgetRepo.observeForBudget(it.id) } ?: flowOf(emptyList())
+    }
+
+    // combine() tops out at 5 positional flows, so hasSmsPermission and the
+    // category budgets list are bundled into one extra flow.
+    private val extras = combine(_hasSmsPermission, categoryBudgetsForActivePeriod) { hasSmsPermission, categoryBudgets ->
+        hasSmsPermission to categoryBudgets
+    }
+
     val uiState: StateFlow<HomeUiState> = combine(
         periodTransactions,
         activeBudget,
         budgetRepo.observeSettings(),
         scanState,
-        _hasSmsPermission
-    ) { transactions, budgetEntity, settings, (isScanning, lastScanResult), hasSmsPermission ->
+        extras
+    ) { transactions, budgetEntity, settings, (isScanning, lastScanResult), (hasSmsPermission, categoryBudgets) ->
         val periodStart = budgetEntity?.let {
             java.time.Instant.ofEpochMilli(it.startDateMillis).atZone(zone).toLocalDate()
         }
@@ -72,6 +84,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             BudgetCalculator.calculate(budgetEntity.amount, transactions, periodEnd = periodEnd)
         } else {
             BudgetCalculator.calculate(0.0, transactions)
+        }
+        val categoryBudgetProgress = categoryBudgets.map { cb ->
+            val spent = transactions
+                .filter { it.type == TransactionType.DEBIT && it.category == cb.category }
+                .sumOf { it.amount }
+            CategoryBudgetProgress(id = cb.id, category = cb.category, budget = cb.amount, spent = spent)
         }
         HomeUiState(
             summary = summary,
@@ -90,7 +108,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             moneyJoke = MoneyJokes.random(settings.roastLanguageEnum, Random(jokeSeed)),
             welcomeMessage = WelcomeMessages.random(settings.roastLanguageEnum, Random(welcomeSeed)),
             periodStart = periodStart,
-            periodEnd = periodEnd
+            periodEnd = periodEnd,
+            categoryBudgets = categoryBudgetProgress
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
@@ -154,6 +173,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val current = budgetRepo.observeSettings().first()
             budgetRepo.updateSettings(current.copy(userName = name.trim()))
         }
+    }
+
+    /** Creates or replaces a category's limit for the currently active budget period. */
+    fun setCategoryBudget(category: String, amount: Double) {
+        viewModelScope.launch {
+            val active = budgetRepo.getActiveOnce(nowMillis) ?: return@launch
+            val existing = categoryBudgetRepo.getForBudget(active.id).firstOrNull { it.category == category }
+            categoryBudgetRepo.setLimit(active.id, category, amount, existingId = existing?.id)
+        }
+    }
+
+    fun deleteCategoryBudget(id: Long) {
+        viewModelScope.launch { categoryBudgetRepo.delete(id) }
     }
 
 }

@@ -22,8 +22,12 @@ data class TransactionsFilter(
     val type: TransactionType? = null,
     val category: String? = null,
     val query: String = "",
-    val month: YearMonth? = null
+    val month: YearMonth? = null,
+    val tag: String? = null
 )
+
+private fun TransactionEntity.tagList(): List<String> =
+    tags?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
 
 class TransactionsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -37,12 +41,17 @@ class TransactionsViewModel(application: Application) : AndroidViewModel(applica
             (filter.type == null || tx.type == filter.type) &&
                 (filter.category == null || tx.category == filter.category) &&
                 (filter.month == null || monthOf(tx.dateMillis) == filter.month) &&
+                (filter.tag == null || tx.tagList().contains(filter.tag)) &&
                 (filter.query.isBlank() || matchesQuery(tx, filter.query))
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val availableMonths: StateFlow<List<YearMonth>> = repo.observeAll()
         .map { list -> list.map { monthOf(it.dateMillis) }.distinct().sortedDescending() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val availableTags: StateFlow<List<String>> = repo.observeAll()
+        .map { list -> list.flatMap { it.tagList() }.distinct().sorted() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private fun monthOf(dateMillis: Long): YearMonth =
@@ -68,6 +77,10 @@ class TransactionsViewModel(application: Application) : AndroidViewModel(applica
         _filter.value = _filter.value.copy(month = month)
     }
 
+    fun setTagFilter(tag: String?) {
+        _filter.value = _filter.value.copy(tag = tag)
+    }
+
     fun setQuery(query: String) {
         _filter.value = _filter.value.copy(query = query)
     }
@@ -76,11 +89,22 @@ class TransactionsViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope.launch { repo.updateCategory(id, category) }
     }
 
+    fun updateTags(id: Long, tags: String) {
+        viewModelScope.launch { repo.updateTags(id, tags.ifBlank { null }) }
+    }
+
     fun delete(transaction: TransactionEntity) {
         viewModelScope.launch { repo.delete(transaction) }
     }
 
-    fun addManual(amount: Double, type: TransactionType, category: String, description: String, dateMillis: Long) {
+    fun addManual(
+        amount: Double,
+        type: TransactionType,
+        category: String,
+        description: String,
+        dateMillis: Long,
+        tags: String = ""
+    ) {
         viewModelScope.launch {
             repo.addManual(
                 TransactionEntity(
@@ -94,7 +118,8 @@ class TransactionsViewModel(application: Application) : AndroidViewModel(applica
                     dedupeHash = "manual-${UUID.randomUUID()}",
                     category = category,
                     isManual = true,
-                    createdAt = System.currentTimeMillis()
+                    createdAt = System.currentTimeMillis(),
+                    tags = tags.ifBlank { null }
                 )
             )
         }

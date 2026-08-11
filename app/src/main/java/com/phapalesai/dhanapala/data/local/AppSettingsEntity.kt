@@ -12,5 +12,6 @@ data class AppSettingsEntity(
     val dailyReminderEnabled: Boolean = false,
     val roastLevel: String = "MEDIUM",
     val roastLanguage: String = "HI",
-    val userName: String = ""
+    val userName: String = "",
+    val biometricLockEnabled: Boolean = false
 )

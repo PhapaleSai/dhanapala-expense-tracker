@@ -67,6 +67,10 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel = viewModel()) {
                 InsightsCard(state)
             }
 
+            if (state.byDay.isNotEmpty()) {
+                SpendingInsightsCard(state)
+            }
+
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Spending by Category", style = MaterialTheme.typography.titleMedium)
@@ -176,6 +180,47 @@ private fun InsightsCard(state: AnalyticsUiState) {
                 "${state.transactionCount} transactions this month.",
                 style = MaterialTheme.typography.bodyMedium
             )
+        }
+    }
+}
+
+@Composable
+private fun SpendingInsightsCard(state: AnalyticsUiState) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("📈 Spending Insights", style = MaterialTheme.typography.titleMedium)
+
+            val projectedPercent = if (state.budget > 0) (state.projectedPeriodEndSpend / state.budget * 100.0).roundToInt() else null
+            Text(
+                buildString {
+                    append("Projected period-end spend: ${CurrencyFormat.rupees(state.projectedPeriodEndSpend)}")
+                    if (projectedPercent != null) append(" (~$projectedPercent% of budget)")
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (projectedPercent != null && projectedPercent > 100) DhanapalaRed else MaterialTheme.colorScheme.onSurface
+            )
+
+            if (state.weekdayAvgSpend > 0 || state.weekendAvgSpend > 0) {
+                val diffText = when {
+                    state.weekdayAvgSpend <= 0.0 -> null
+                    state.weekendAvgSpend > state.weekdayAvgSpend -> {
+                        val pct = ((state.weekendAvgSpend / state.weekdayAvgSpend - 1.0) * 100.0).roundToInt()
+                        "Weekends cost $pct% more than weekdays on average."
+                    }
+                    state.weekendAvgSpend < state.weekdayAvgSpend -> {
+                        val pct = ((1.0 - state.weekendAvgSpend / state.weekdayAvgSpend) * 100.0).roundToInt()
+                        "Weekends cost $pct% less than weekdays on average."
+                    }
+                    else -> "Weekday and weekend spending are about the same."
+                }
+                Text(
+                    "Weekday avg ${CurrencyFormat.rupees(state.weekdayAvgSpend)}/day · Weekend avg ${CurrencyFormat.rupees(state.weekendAvgSpend)}/day",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                diffText?.let {
+                    Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 }

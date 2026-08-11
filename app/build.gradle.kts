@@ -25,8 +25,8 @@ android {
         applicationId = "com.phapalesai.dhanapala"
         minSdk = 26
         targetSdk = 34
-        versionCode = 20
-        versionName = "1.5.1"
+        versionCode = 21
+        versionName = "1.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -86,6 +86,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.activity:activity-compose:1.9.0")
+    implementation("androidx.fragment:fragment-ktx:1.6.2")
+    implementation("androidx.biometric:biometric:1.1.0")
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")

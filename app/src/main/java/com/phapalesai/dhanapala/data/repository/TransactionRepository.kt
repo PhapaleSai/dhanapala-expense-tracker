@@ -76,6 +76,8 @@ class TransactionRepository(
 
     suspend fun updateCategory(id: Long, category: String) = dao.updateCategory(id, category)
 
+    suspend fun updateTags(id: Long, tags: String?) = dao.updateTags(id, tags)
+
     suspend fun delete(transaction: TransactionEntity) = dao.delete(transaction)
 
     suspend fun deleteAll() = dao.deleteAll()

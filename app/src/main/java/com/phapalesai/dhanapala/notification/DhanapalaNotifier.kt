@@ -70,6 +70,13 @@ class DhanapalaNotifier(private val context: Context) {
         )
     }
 
+    fun notifyCategoryBudgetExceeded(category: String, spent: Double, limit: Double) {
+        show(
+            title = "⚠️ $category budget exhausted!",
+            text = "${CurrencyFormat.rupees(spent)} spent against a ${CurrencyFormat.rupees(limit)} limit for $category."
+        )
+    }
+
     private fun show(title: String, text: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val granted = ActivityCompat.checkSelfPermission(

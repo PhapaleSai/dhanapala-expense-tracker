@@ -32,6 +32,7 @@ import com.phapalesai.dhanapala.domain.RoastLanguage
 import com.phapalesai.dhanapala.domain.RoastLevel
 import com.phapalesai.dhanapala.domain.roastLanguageEnum
 import com.phapalesai.dhanapala.domain.roastLevelEnum
+import com.phapalesai.dhanapala.ui.lock.canUseBiometricLock
 import android.content.Intent
 import java.io.File
 
@@ -126,6 +127,25 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(), onViewRawSms: () 
                         checked = settings.dailyReminderEnabled,
                         onCheckedChange = { viewModel.updateSettings { s -> s.copy(dailyReminderEnabled = it) } }
                     )
+                    var biometricUnavailableNotice by remember { mutableStateOf(false) }
+                    SettingToggleRow(
+                        label = "Biometric Lock",
+                        checked = settings.biometricLockEnabled,
+                        onCheckedChange = { turningOn ->
+                            if (turningOn && !canUseBiometricLock(context)) {
+                                biometricUnavailableNotice = true
+                            } else {
+                                viewModel.updateSettings { s -> s.copy(biometricLockEnabled = turningOn) }
+                            }
+                        }
+                    )
+                    if (biometricUnavailableNotice) {
+                        Text(
+                            "No fingerprint/face unlock or screen lock is set up on this device — set one up in your phone's security settings first.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
 

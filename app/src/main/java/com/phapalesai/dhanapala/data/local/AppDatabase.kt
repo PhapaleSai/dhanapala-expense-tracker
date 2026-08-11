@@ -75,9 +75,33 @@ val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
     }
 }
 
+/**
+ * Adds three independent, additive pieces of schema in one release: a new
+ * category_budgets table for per-category sub-budgets, a tags column on
+ * transactions, and a biometricLockEnabled flag on app_settings. None of
+ * these touch existing columns, so no data conversion is needed.
+ */
+val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE category_budgets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                budgetId INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                amount REAL NOT NULL,
+                notifiedExceeded INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent()
+        )
+        db.execSQL("ALTER TABLE transactions ADD COLUMN tags TEXT")
+        db.execSQL("ALTER TABLE app_settings ADD COLUMN biometricLockEnabled INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
-    entities = [TransactionEntity::class, BudgetEntity::class, AppSettingsEntity::class],
-    version = 5,
+    entities = [TransactionEntity::class, BudgetEntity::class, AppSettingsEntity::class, CategoryBudgetEntity::class],
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -86,6 +110,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun budgetDao(): BudgetDao
     abstract fun appSettingsDao(): AppSettingsDao
+    abstract fun categoryBudgetDao(): CategoryBudgetDao
 
     companion object {
         @Volatile
@@ -98,7 +123,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "dhanapala.db"
                 )
-                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     // Safety net only for schema jumps with no migration path
                     // (e.g. very old pre-release installs) — real installs from
                     // here on go through explicit migrations so data survives.

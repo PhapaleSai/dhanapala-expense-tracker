@@ -23,5 +23,7 @@ data class TransactionEntity(
     val dedupeHash: String,
     val category: String,
     val isManual: Boolean,
-    val createdAt: Long
+    val createdAt: Long,
+    /** Comma-separated free-form tags, e.g. "GoaTrip,Diwali". Null/blank means untagged. */
+    val tags: String? = null
 )

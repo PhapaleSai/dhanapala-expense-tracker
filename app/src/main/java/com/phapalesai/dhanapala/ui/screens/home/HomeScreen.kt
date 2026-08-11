@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,6 +34,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.Button
@@ -65,6 +67,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.phapalesai.dhanapala.R
 import com.phapalesai.dhanapala.data.local.TransactionEntity
 import com.phapalesai.dhanapala.data.local.TransactionType
+import com.phapalesai.dhanapala.ui.categoryColor
 import com.phapalesai.dhanapala.ui.categoryEmoji
 import com.phapalesai.dhanapala.ui.theme.DhanapalaGold
 import com.phapalesai.dhanapala.util.CurrencyFormat
@@ -208,13 +211,23 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
                 }
             }
 
-            EnterAnimated(delayMillis = 180) { MoneyJokeCard(state.moneyJoke) }
+            if (state.hasBudgetSet) {
+                EnterAnimated(delayMillis = 150) {
+                    CategoryBudgetsCard(
+                        items = state.categoryBudgets,
+                        onSetLimit = viewModel::setCategoryBudget,
+                        onDelete = viewModel::deleteCategoryBudget
+                    )
+                }
+            }
 
-            EnterAnimated(delayMillis = 220) { BhaiMeterCard(state.bhaiMessage) }
+            EnterAnimated(delayMillis = 190) { MoneyJokeCard(state.moneyJoke) }
 
-            EnterAnimated(delayMillis = 260) { MoneyTipCard(state.moneyTip) }
+            EnterAnimated(delayMillis = 230) { BhaiMeterCard(state.bhaiMessage) }
 
-            EnterAnimated(delayMillis = 300) {
+            EnterAnimated(delayMillis = 270) { MoneyTipCard(state.moneyTip) }
+
+            EnterAnimated(delayMillis = 310) {
                 ScanSmsCard(
                     hasPermission = hasPermission,
                     isScanning = state.isScanning,
@@ -224,7 +237,7 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
                 )
             }
 
-            EnterAnimated(delayMillis = 340) { RecentTransactionsCard(state.recentTransactions) }
+            EnterAnimated(delayMillis = 350) { RecentTransactionsCard(state.recentTransactions) }
         }
         }
     }
@@ -634,6 +647,139 @@ private fun MoneyTipCard(tip: String?) {
         Text("💡 Money-Saving Tip", style = MaterialTheme.typography.titleMedium)
         Text(text = tip, style = MaterialTheme.typography.bodyMedium)
     }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryBudgetsCard(
+    items: List<CategoryBudgetProgress>,
+    onSetLimit: (String, Double) -> Unit,
+    onDelete: (Long) -> Unit
+) {
+    var showAddDialog by remember { mutableStateOf(false) }
+    GlowCard(glowColor = Color(0xFF4FC3F7)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("🎯 Category Budgets", style = MaterialTheme.typography.titleMedium)
+            androidx.compose.material3.TextButton(onClick = { showAddDialog = true }) { Text("+ Add") }
+        }
+        if (items.isEmpty()) {
+            Text(
+                "Set a limit per category to keep specific spending in check.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            items.forEach { item -> CategoryBudgetRow(item, onDelete = { onDelete(item.id) }) }
+        }
+    }
+
+    if (showAddDialog) {
+        AddCategoryBudgetDialog(
+            onDismiss = { showAddDialog = false },
+            onSave = { category, amount ->
+                onSetLimit(category, amount)
+                showAddDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun CategoryBudgetRow(item: CategoryBudgetProgress, onDelete: () -> Unit) {
+    val percent = if (item.budget > 0) (item.spent / item.budget).toFloat().coerceIn(0f, 1f) else 0f
+    val color = categoryColor(item.category)
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("${categoryEmoji(item.category)} ${item.category}", style = MaterialTheme.typography.bodyMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${CurrencyFormat.rupees(item.spent)} / ${CurrencyFormat.rupees(item.budget)}",
+                    style = MaterialTheme.typography.labelSmall
+                )
+                IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = "Remove ${item.category} budget",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(percent)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(if (percent >= 1f) MaterialTheme.colorScheme.error else color)
+            )
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun AddCategoryBudgetDialog(onDismiss: () -> Unit, onSave: (String, Double) -> Unit) {
+    var category by remember { mutableStateOf(com.phapalesai.dhanapala.data.local.Category.FOOD) }
+    var amountText by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Set category budget") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                androidx.compose.material3.ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category") },
+                        trailingIcon = { androidx.compose.material3.ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        com.phapalesai.dhanapala.data.local.Category.ALL.forEach { option ->
+                            androidx.compose.material3.DropdownMenuItem(text = { Text(option) }, onClick = {
+                                category = option
+                                expanded = false
+                            })
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("Limit (₹)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                onClick = { amountText.toDoubleOrNull()?.let { onSave(category, it) } },
+                enabled = amountText.toDoubleOrNull() != null
+            ) { Text("Save") }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

@@ -39,6 +39,11 @@ class FakeTransactionDao : TransactionDao {
         publish()
     }
 
+    override suspend fun updateTags(id: Long, tags: String?) {
+        store[id]?.let { store[id] = it.copy(tags = tags) }
+        publish()
+    }
+
     override suspend fun delete(transaction: TransactionEntity) {
         store.remove(transaction.id)
         publish()

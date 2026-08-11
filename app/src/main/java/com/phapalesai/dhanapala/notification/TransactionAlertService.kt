@@ -2,6 +2,7 @@ package com.phapalesai.dhanapala.notification
 
 import com.phapalesai.dhanapala.data.local.TransactionType
 import com.phapalesai.dhanapala.data.repository.BudgetRepository
+import com.phapalesai.dhanapala.data.repository.CategoryBudgetRepository
 import com.phapalesai.dhanapala.data.repository.ScanResult
 import com.phapalesai.dhanapala.data.repository.TransactionRepository
 import com.phapalesai.dhanapala.domain.BhaiMessageEngine
@@ -24,6 +25,7 @@ import kotlin.math.roundToInt
 class TransactionAlertService(
     private val transactionRepo: TransactionRepository,
     private val budgetRepo: BudgetRepository,
+    private val categoryBudgetRepo: CategoryBudgetRepository,
     private val notifier: DhanapalaNotifier
 ) {
     private val zone = ZoneId.systemDefault()
@@ -72,6 +74,22 @@ class TransactionAlertService(
                 budgetRepo.markNotified80(budgetEntity.id)
             }
             BudgetNotifyTier.NONE -> Unit
+        }
+
+        checkCategoryBudgets(budgetEntity.id, periodTransactions)
+    }
+
+    private suspend fun checkCategoryBudgets(budgetId: Long, periodTransactions: List<com.phapalesai.dhanapala.data.local.TransactionEntity>) {
+        val categoryBudgets = categoryBudgetRepo.getForBudget(budgetId)
+        for (cb in categoryBudgets) {
+            if (cb.notifiedExceeded || cb.amount <= 0) continue
+            val spent = periodTransactions
+                .filter { it.type == TransactionType.DEBIT && it.category == cb.category }
+                .sumOf { it.amount }
+            if (spent >= cb.amount) {
+                notifier.notifyCategoryBudgetExceeded(cb.category, spent, cb.amount)
+                categoryBudgetRepo.markNotifiedExceeded(cb.id)
+            }
         }
     }
 }

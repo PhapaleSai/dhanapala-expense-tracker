@@ -7,6 +7,13 @@ import com.phapalesai.dhanapala.domain.BudgetCalculator
 import com.phapalesai.dhanapala.domain.BudgetSummary
 import java.time.LocalDate
 
+data class CategoryBudgetProgress(
+    val id: Long,
+    val category: String,
+    val budget: Double,
+    val spent: Double
+)
+
 data class HomeUiState(
     val summary: BudgetSummary = BudgetCalculator.calculate(0.0, emptyList()),
     val recentTransactions: List<TransactionEntity> = emptyList(),
@@ -20,5 +27,6 @@ data class HomeUiState(
     val moneyJoke: String? = null,
     val welcomeMessage: String? = null,
     val periodStart: LocalDate? = null,
-    val periodEnd: LocalDate? = null
+    val periodEnd: LocalDate? = null,
+    val categoryBudgets: List<CategoryBudgetProgress> = emptyList()
 )

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -59,8 +60,10 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = viewModel()) {
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val availableMonths by viewModel.availableMonths.collectAsStateWithLifecycle()
+    val availableTags by viewModel.availableTags.collectAsStateWithLifecycle()
 
     var editingTransaction by remember { mutableStateOf<TransactionEntity?>(null) }
+    var editingTags by remember { mutableStateOf<TransactionEntity?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -127,6 +130,28 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = viewModel()) {
                 )
             }
 
+            if (availableTags.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = filter.tag == null,
+                            onClick = { viewModel.setTagFilter(null) },
+                            label = { Text("All tags") }
+                        )
+                    }
+                    items(availableTags) { tag ->
+                        FilterChip(
+                            selected = filter.tag == tag,
+                            onClick = { viewModel.setTagFilter(if (filter.tag == tag) null else tag) },
+                            label = { Text("#$tag") }
+                        )
+                    }
+                }
+            }
+
             if (transactions.isEmpty()) {
                 Text(
                     "No transactions match these filters.",
@@ -143,6 +168,7 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = viewModel()) {
                         TransactionRow(
                             tx = tx,
                             onEditCategory = { editingTransaction = tx },
+                            onEditTags = { editingTags = tx },
                             onDelete = { viewModel.delete(tx) }
                         )
                     }
@@ -162,11 +188,22 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = viewModel()) {
         )
     }
 
+    editingTags?.let { tx ->
+        EditTagsDialog(
+            current = tx.tags.orEmpty(),
+            onDismiss = { editingTags = null },
+            onSave = { tags ->
+                viewModel.updateTags(tx.id, tags)
+                editingTags = null
+            }
+        )
+    }
+
     if (showAddDialog) {
         AddManualTransactionDialog(
             onDismiss = { showAddDialog = false },
-            onSave = { amount, type, category, description ->
-                viewModel.addManual(amount, type, category, description, System.currentTimeMillis())
+            onSave = { amount, type, category, description, tags ->
+                viewModel.addManual(amount, type, category, description, System.currentTimeMillis(), tags)
                 showAddDialog = false
             }
         )
@@ -174,7 +211,12 @@ fun TransactionsScreen(viewModel: TransactionsViewModel = viewModel()) {
 }
 
 @Composable
-private fun TransactionRow(tx: TransactionEntity, onEditCategory: () -> Unit, onDelete: () -> Unit) {
+private fun TransactionRow(
+    tx: TransactionEntity,
+    onEditCategory: () -> Unit,
+    onEditTags: () -> Unit,
+    onDelete: () -> Unit
+) {
     val formatter = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
     val color = categoryColor(tx.category)
     Card(
@@ -215,6 +257,13 @@ private fun TransactionRow(tx: TransactionEntity, onEditCategory: () -> Unit, on
                 if (tx.isManual) {
                     Text("Manual entry", style = MaterialTheme.typography.labelSmall, color = color)
                 }
+                tx.tags?.takeIf { it.isNotBlank() }?.let { tags ->
+                    Text(
+                        tags.split(",").joinToString(" ") { "#${it.trim()}" },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
             Column(horizontalAlignment = Alignment.End) {
@@ -231,6 +280,7 @@ private fun TransactionRow(tx: TransactionEntity, onEditCategory: () -> Unit, on
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = onEditCategory) { Text("Edit") }
+                    TextButton(onClick = onEditTags) { Text("🏷️") }
                     IconButton(onClick = onDelete) {
                         Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                     }
@@ -272,11 +322,12 @@ private fun DropdownFilter(
 
 @Composable
 private fun CategoryPickerDialog(current: String, onDismiss: () -> Unit, onSelect: (String) -> Unit) {
+    var customCategory by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Change category") },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Category.ALL.forEach { category ->
                     TextButton(onClick = { onSelect(category) }) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -290,9 +341,54 @@ private fun CategoryPickerDialog(current: String, onDismiss: () -> Unit, onSelec
                         }
                     }
                 }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = customCategory,
+                        onValueChange = { customCategory = it },
+                        label = { Text("Custom category") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        onClick = { onSelect(customCategory.trim()) },
+                        enabled = customCategory.isNotBlank()
+                    ) { Text("Use") }
+                }
             }
         },
         confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+private fun EditTagsDialog(current: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit tags") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    "Comma-separated, e.g. GoaTrip, Diwali",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Tags") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(text.trim()) }) { Text("Save") }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
@@ -301,12 +397,14 @@ private fun CategoryPickerDialog(current: String, onDismiss: () -> Unit, onSelec
 @Composable
 private fun AddManualTransactionDialog(
     onDismiss: () -> Unit,
-    onSave: (amount: Double, type: TransactionType, category: String, description: String) -> Unit
+    onSave: (amount: Double, type: TransactionType, category: String, description: String, tags: String) -> Unit
 ) {
     var amountText by remember { mutableStateOf("") }
     var type by remember { mutableStateOf(TransactionType.DEBIT) }
     var category by remember { mutableStateOf(Category.UNCATEGORIZED) }
+    var customCategory by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var tags by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -335,7 +433,14 @@ private fun AddManualTransactionDialog(
                     label = "Category",
                     selected = category,
                     options = Category.ALL,
-                    onSelect = { category = it }
+                    onSelect = { category = it; customCategory = "" }
+                )
+                OutlinedTextField(
+                    value = customCategory,
+                    onValueChange = { customCategory = it },
+                    label = { Text("Or a custom category (optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = description,
@@ -343,12 +448,19 @@ private fun AddManualTransactionDialog(
                     label = { Text("Description (optional)") },
                     modifier = Modifier.fillMaxWidth()
                 )
+                OutlinedTextField(
+                    value = tags,
+                    onValueChange = { tags = it },
+                    label = { Text("Tags, comma-separated (optional)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    amountText.toDoubleOrNull()?.let { onSave(it, type, category, description) }
+                    val finalCategory = customCategory.trim().ifBlank { category }
+                    amountText.toDoubleOrNull()?.let { onSave(it, type, finalCategory, description, tags) }
                 },
                 enabled = amountText.toDoubleOrNull() != null
             ) { Text("Save") }

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.phapalesai.dhanapala.DhanapalaApplication
 import com.phapalesai.dhanapala.data.local.TransactionType
 import com.phapalesai.dhanapala.domain.BudgetCalculator
+import com.phapalesai.dhanapala.domain.SpendingInsights
 import com.phapalesai.dhanapala.util.DateUtils
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,7 +32,10 @@ data class AnalyticsUiState(
     val transactionCount: Int = 0,
     val avgDailySpend: Double = 0.0,
     val topCategory: CategorySpend? = null,
-    val topDay: DailySpend? = null
+    val topDay: DailySpend? = null,
+    val projectedPeriodEndSpend: Double = 0.0,
+    val weekdayAvgSpend: Double = 0.0,
+    val weekendAvgSpend: Double = 0.0
 )
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -65,6 +69,7 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
             .map { (date, txs) -> DailySpend(date, txs.sumOf { it.amount }) }
             .sortedBy { it.date }
 
+        val periodStart = budgetEntity?.let { Instant.ofEpochMilli(it.startDateMillis).atZone(zone).toLocalDate() }
         val periodEnd = budgetEntity?.let { Instant.ofEpochMilli(it.endDateMillis).atZone(zone).toLocalDate() }
         val summary = if (periodEnd != null) {
             BudgetCalculator.calculate(budgetEntity.amount, transactions, periodEnd = periodEnd)
@@ -72,6 +77,14 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
             BudgetCalculator.calculate(0.0, transactions)
         }
         val daysElapsed = byDay.map { it.date }.distinct().size.coerceAtLeast(1)
+
+        val today = LocalDate.now()
+        val projectedPeriodEndSpend = if (periodStart != null && periodEnd != null) {
+            SpendingInsights.projectPeriodEndSpend(summary.spent, periodStart, periodEnd, today)
+        } else {
+            summary.spent
+        }
+        val weekdayWeekend = SpendingInsights.weekdayVsWeekendAverage(byDay.associate { it.date to it.amount })
 
         AnalyticsUiState(
             byCategory = byCategory,
@@ -84,7 +97,10 @@ class AnalyticsViewModel(application: Application) : AndroidViewModel(applicatio
             transactionCount = debits.size,
             avgDailySpend = summary.spent / daysElapsed,
             topCategory = byCategory.maxByOrNull { it.amount },
-            topDay = byDay.maxByOrNull { it.amount }
+            topDay = byDay.maxByOrNull { it.amount },
+            projectedPeriodEndSpend = projectedPeriodEndSpend,
+            weekdayAvgSpend = weekdayWeekend.weekdayAvg,
+            weekendAvgSpend = weekdayWeekend.weekendAvg
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnalyticsUiState())
 }
