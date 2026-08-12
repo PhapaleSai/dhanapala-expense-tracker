@@ -30,4 +30,23 @@ class DhanpalChatEngineTest {
         val reply = DhanpalChatEngine.respond("can I afford 2k shoes", remaining = 1500.0, RoastLanguage.EN, Random(1))
         assertTrue(reply.contains("no") || reply.contains("No") || reply.contains("short") || reply.contains("not"))
     }
+
+    @Test
+    fun `1 lakh is parsed as one hundred thousand, not one`() {
+        // Regression test: "1 lakh" must resolve to 100000, not the literal digit "1".
+        val reply = DhanpalChatEngine.respond("can I afford 1 lakh bike", remaining = 50_000.0, RoastLanguage.EN, Random(1))
+        assertTrue(reply.contains("no") || reply.contains("No") || reply.contains("short") || reply.contains("not"))
+    }
+
+    @Test
+    fun `affordable lakh amount is recognized as affordable`() {
+        val reply = DhanpalChatEngine.respond("can I afford 1 lakh bike", remaining = 200_000.0, RoastLanguage.EN, Random(1))
+        assertTrue(reply.contains("afford") || reply.contains("Go for it") || reply.contains("Technically"))
+    }
+
+    @Test
+    fun `crore amount is parsed as ten million`() {
+        val reply = DhanpalChatEngine.respond("can I afford a 1 crore house", remaining = 500_000.0, RoastLanguage.EN, Random(1))
+        assertTrue(reply.contains("no") || reply.contains("No") || reply.contains("short") || reply.contains("not"))
+    }
 }

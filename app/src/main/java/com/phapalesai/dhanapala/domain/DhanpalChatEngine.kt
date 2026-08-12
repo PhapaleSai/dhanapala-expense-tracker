@@ -10,7 +10,10 @@ import kotlin.random.Random
  */
 object DhanpalChatEngine {
 
-    private val amountRegex = Regex("""(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)\s*(k|thousand|hazar)?""", RegexOption.IGNORE_CASE)
+    private val amountRegex = Regex(
+        """(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)\s*(k|thousand|hazar|lakhs?|lacs?|crores?|cr)?""",
+        RegexOption.IGNORE_CASE
+    )
 
     fun respond(userMessage: String, remaining: Double, language: RoastLanguage, random: Random = Random.Default): String {
         val amount = extractAmount(userMessage) ?: return genericResponse(language, random)
@@ -21,8 +24,14 @@ object DhanpalChatEngine {
     private fun extractAmount(text: String): Double? {
         val match = amountRegex.find(text) ?: return null
         val numberPart = match.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
-        val multiplier = match.groupValues[2]
-        return if (multiplier.isNotBlank()) numberPart * 1000 else numberPart
+        return numberPart * multiplierFor(match.groupValues[2])
+    }
+
+    private fun multiplierFor(word: String): Double = when (word.lowercase()) {
+        "k", "thousand", "hazar" -> 1_000.0
+        "lakh", "lakhs", "lac", "lacs" -> 100_000.0
+        "crore", "crores", "cr" -> 10_000_000.0
+        else -> 1.0
     }
 
     private fun canAffordResponse(amount: Double, remaining: Double, language: RoastLanguage, random: Random): String {
