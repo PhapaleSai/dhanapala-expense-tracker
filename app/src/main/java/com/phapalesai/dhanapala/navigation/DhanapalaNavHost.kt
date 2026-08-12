@@ -17,8 +17,10 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -27,11 +29,17 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.phapalesai.dhanapala.ui.screens.accounts.AccountsScreen
 import com.phapalesai.dhanapala.ui.screens.analytics.AnalyticsScreen
+import com.phapalesai.dhanapala.ui.screens.brokeometer.BrokeOMeterScreen
+import com.phapalesai.dhanapala.ui.screens.chat.DhanpalChatScreen
 import com.phapalesai.dhanapala.ui.screens.home.HomeScreen
 import com.phapalesai.dhanapala.ui.screens.messages.MessagesScreen
+import com.phapalesai.dhanapala.ui.screens.panic.PanicButtonScreen
 import com.phapalesai.dhanapala.ui.screens.settings.SettingsScreen
 import com.phapalesai.dhanapala.ui.screens.split.SplitCalculatorScreen
+import com.phapalesai.dhanapala.ui.screens.splitgroups.SplitGroupsScreen
+import com.phapalesai.dhanapala.ui.screens.timemachine.TimeMachineScreen
 import com.phapalesai.dhanapala.ui.screens.transactions.TransactionsScreen
+import com.phapalesai.dhanapala.util.ShakeDetector
 
 object Routes {
     const val HOME = "home"
@@ -41,6 +49,11 @@ object Routes {
     const val MESSAGES = "messages"
     const val SPLIT_CALCULATOR = "split_calculator"
     const val ACCOUNTS = "accounts"
+    const val PANIC_BUTTON = "panic_button"
+    const val BROKE_O_METER = "broke_o_meter"
+    const val DHANPAL_CHAT = "dhanpal_chat"
+    const val TIME_MACHINE = "time_machine"
+    const val SPLIT_GROUPS = "split_groups"
 }
 
 private data class BottomTab(val route: String, val label: String, val icon: ImageVector)
@@ -55,6 +68,17 @@ private val bottomTabs = listOf(
 @Composable
 fun DhanapalaNavHost() {
     val navController = rememberNavController()
+    val context = LocalContext.current
+
+    // A hard shake anywhere in the app pops up the Broke-o-Meter — a fun,
+    // read-only gut-check, never triggered from a screen that has unsaved input.
+    DisposableEffect(Unit) {
+        val detector = ShakeDetector(context) {
+            navController.navigate(Routes.BROKE_O_METER)
+        }
+        detector.start()
+        onDispose { detector.stop() }
+    }
 
     Scaffold(
         bottomBar = {
@@ -89,7 +113,10 @@ fun DhanapalaNavHost() {
             popExitTransition = { fadeOut(tween(150)) + slideOutHorizontally(tween(150)) { it / 10 } }
         ) {
             composable(Routes.HOME) {
-                HomeScreen(onAddTransaction = { navController.navigate(Routes.TRANSACTIONS) })
+                HomeScreen(
+                    onAddTransaction = { navController.navigate(Routes.TRANSACTIONS) },
+                    onPanicButton = { navController.navigate(Routes.PANIC_BUTTON) }
+                )
             }
             composable(Routes.TRANSACTIONS) { TransactionsScreen() }
             composable(Routes.ANALYTICS) { AnalyticsScreen() }
@@ -97,12 +124,20 @@ fun DhanapalaNavHost() {
                 SettingsScreen(
                     onViewRawSms = { navController.navigate(Routes.MESSAGES) },
                     onSplitBill = { navController.navigate(Routes.SPLIT_CALCULATOR) },
-                    onManageAccounts = { navController.navigate(Routes.ACCOUNTS) }
+                    onManageAccounts = { navController.navigate(Routes.ACCOUNTS) },
+                    onOpenChat = { navController.navigate(Routes.DHANPAL_CHAT) },
+                    onOpenTimeMachine = { navController.navigate(Routes.TIME_MACHINE) },
+                    onOpenSplitGroups = { navController.navigate(Routes.SPLIT_GROUPS) }
                 )
             }
             composable(Routes.MESSAGES) { MessagesScreen() }
             composable(Routes.SPLIT_CALCULATOR) { SplitCalculatorScreen() }
             composable(Routes.ACCOUNTS) { AccountsScreen() }
+            composable(Routes.PANIC_BUTTON) { PanicButtonScreen(onDone = { navController.popBackStack() }) }
+            composable(Routes.BROKE_O_METER) { BrokeOMeterScreen(onDismiss = { navController.popBackStack() }) }
+            composable(Routes.DHANPAL_CHAT) { DhanpalChatScreen() }
+            composable(Routes.TIME_MACHINE) { TimeMachineScreen() }
+            composable(Routes.SPLIT_GROUPS) { SplitGroupsScreen() }
         }
     }
 }

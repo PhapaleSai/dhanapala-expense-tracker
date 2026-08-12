@@ -9,8 +9,10 @@ import com.phapalesai.dhanapala.data.local.TransactionType
 import com.phapalesai.dhanapala.data.repository.ScanResult
 import com.phapalesai.dhanapala.domain.BhaiMessageEngine
 import com.phapalesai.dhanapala.domain.BudgetCalculator
+import com.phapalesai.dhanapala.domain.MoneyHoroscope
 import com.phapalesai.dhanapala.domain.MoneyJokes
 import com.phapalesai.dhanapala.domain.MoneySavingTips
+import com.phapalesai.dhanapala.domain.StreakCalculator
 import com.phapalesai.dhanapala.domain.WelcomeMessages
 import com.phapalesai.dhanapala.domain.roastLanguageEnum
 import com.phapalesai.dhanapala.domain.roastLevelEnum
@@ -48,6 +50,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _isScanning = MutableStateFlow(false)
     private val _lastScanResult = MutableStateFlow<ScanResult?>(null)
     private val _hasSmsPermission = MutableStateFlow(false)
+    private val _ghostMemory = MutableStateFlow<GhostMemory?>(null)
+    private val _celebration = MutableStateFlow<CelebrationState?>(null)
     private val scanState = combine(_isScanning, _lastScanResult) { scanning, result -> scanning to result }
 
     private val activeBudget = budgetRepo.observeActive(nowMillis)
@@ -62,10 +66,62 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         budget?.let { categoryBudgetRepo.observeForBudget(it.id) } ?: flowOf(emptyList())
     }
 
-    // combine() tops out at 5 positional flows, so hasSmsPermission and the
-    // category budgets list are bundled into one extra flow.
-    private val extras = combine(_hasSmsPermission, categoryBudgetsForActivePeriod) { hasSmsPermission, categoryBudgets ->
-        hasSmsPermission to categoryBudgets
+    private data class ExtrasBundle(
+        val hasSmsPermission: Boolean,
+        val categoryBudgets: List<com.phapalesai.dhanapala.data.local.CategoryBudgetEntity>,
+        val allTransactions: List<TransactionEntity>,
+        val ghostMemory: GhostMemory?,
+        val celebration: CelebrationState?
+    )
+
+    // combine() tops out at 5 positional flows, so everything beyond the
+    // top-level 5 gets bundled into this one extra flow.
+    private val extras = combine(
+        _hasSmsPermission,
+        categoryBudgetsForActivePeriod,
+        transactionRepo.observeAll(),
+        _ghostMemory,
+        _celebration
+    ) { hasSmsPermission, categoryBudgets, allTransactions, ghostMemory, celebration ->
+        ExtrasBundle(hasSmsPermission, categoryBudgets, allTransactions, ghostMemory, celebration)
+    }
+
+    init {
+        viewModelScope.launch {
+            val lastMonthToday = LocalDate.now().minusMonths(1)
+            val range = DateUtils.dayRangeMillis(lastMonthToday)
+            val debitTxs = transactionRepo.getBetweenOnce(range.first, range.last)
+                .filter { it.type == TransactionType.DEBIT }
+            val total = debitTxs.sumOf { it.amount }
+            if (total > 0) {
+                val topCategory = debitTxs.groupBy { it.category }
+                    .maxByOrNull { (_, txs) -> txs.sumOf { it.amount } }?.key
+                _ghostMemory.value = GhostMemory(total, topCategory, lastMonthToday)
+            }
+        }
+        viewModelScope.launch {
+            val active = budgetRepo.getActiveOnce(nowMillis)
+            if (active != null) return@launch
+            val ended = budgetRepo.getMostRecentlyEndedOnce(nowMillis) ?: return@launch
+            val settings = budgetRepo.observeSettings().first()
+            if (settings.lastCelebratedBudgetId == ended.id) return@launch
+            val transactions = transactionRepo.getBetweenOnce(ended.startDateMillis, ended.endDateMillis)
+            val spent = transactions.filter { it.type == TransactionType.DEBIT }.sumOf { it.amount }
+            _celebration.value = CelebrationState(
+                budgetId = ended.id,
+                wasUnderBudget = spent <= ended.amount,
+                amountOverOrUnder = kotlin.math.abs(ended.amount - spent)
+            )
+        }
+    }
+
+    fun dismissCelebration() {
+        val current = _celebration.value ?: return
+        _celebration.value = null
+        viewModelScope.launch {
+            val settings = budgetRepo.observeSettings().first()
+            budgetRepo.updateSettings(settings.copy(lastCelebratedBudgetId = current.budgetId))
+        }
     }
 
     val uiState: StateFlow<HomeUiState> = combine(
@@ -74,7 +130,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         budgetRepo.observeSettings(),
         scanState,
         extras
-    ) { transactions, budgetEntity, settings, (isScanning, lastScanResult), (hasSmsPermission, categoryBudgets) ->
+    ) { transactions, budgetEntity, settings, (isScanning, lastScanResult), extrasBundle ->
+        val hasSmsPermission = extrasBundle.hasSmsPermission
+        val categoryBudgets = extrasBundle.categoryBudgets
         val periodStart = budgetEntity?.let {
             java.time.Instant.ofEpochMilli(it.startDateMillis).atZone(zone).toLocalDate()
         }
@@ -107,10 +165,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             hasSmsPermission = hasSmsPermission,
             moneyTip = moneyTipFor(transactions),
             moneyJoke = MoneyJokes.random(settings.roastLanguageEnum, Random(jokeSeed)),
+            moneyHoroscope = MoneyHoroscope.today(settings.roastLanguageEnum),
             welcomeMessage = WelcomeMessages.random(settings.roastLanguageEnum, Random(welcomeSeed)),
             periodStart = periodStart,
             periodEnd = periodEnd,
-            categoryBudgets = categoryBudgetProgress
+            categoryBudgets = categoryBudgetProgress,
+            badges = StreakCalculator.earnedBadges(extrasBundle.allTransactions),
+            ghostMemory = extrasBundle.ghostMemory,
+            celebration = extrasBundle.celebration,
+            impulsesAvoided = settings.impulsesAvoided
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 

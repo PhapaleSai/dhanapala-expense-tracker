@@ -15,6 +15,8 @@ class BudgetRepository(
 
     suspend fun getActiveOnce(nowMillis: Long): BudgetEntity? = budgetDao.getActiveOnce(nowMillis)
 
+    suspend fun getMostRecentlyEndedOnce(nowMillis: Long): BudgetEntity? = budgetDao.getMostRecentlyEndedOnce(nowMillis)
+
     /** Creates a new budget period, or replaces the currently active one's amount (same id, dates, resets notified flags). */
     suspend fun setBudget(startDateMillis: Long, endDateMillis: Long, amount: Double, existingId: Long? = null): Long =
         budgetDao.upsert(

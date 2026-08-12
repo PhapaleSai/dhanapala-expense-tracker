@@ -119,15 +119,64 @@ val MIGRATION_6_7 = object : androidx.room.migration.Migration(6, 7) {
     }
 }
 
+/**
+ * Adds two Panic Button / Month-end celebration counters on app_settings.
+ * Both additive, no data conversion needed.
+ */
+val MIGRATION_7_8 = object : androidx.room.migration.Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE app_settings ADD COLUMN impulsesAvoided INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE app_settings ADD COLUMN lastCelebratedBudgetId INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+/** Adds the voice-roasts opt-in flag on app_settings. Additive, no data conversion needed. */
+val MIGRATION_8_9 = object : androidx.room.migration.Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE app_settings ADD COLUMN voiceRoastsEnabled INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+/** Adds the Split Groups feature — persisted shared-expense groups and their expenses. */
+val MIGRATION_9_10 = object : androidx.room.migration.Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE split_groups (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                name TEXT NOT NULL,
+                participants TEXT NOT NULL,
+                createdAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE split_expenses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                groupId INTEGER NOT NULL,
+                description TEXT NOT NULL,
+                amount REAL NOT NULL,
+                paidBy TEXT NOT NULL,
+                splitAmong TEXT NOT NULL,
+                createdAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
         BudgetEntity::class,
         AppSettingsEntity::class,
         CategoryBudgetEntity::class,
-        AccountNicknameEntity::class
+        AccountNicknameEntity::class,
+        SplitGroupEntity::class,
+        SplitExpenseEntity::class
     ],
-    version = 7,
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -138,6 +187,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun appSettingsDao(): AppSettingsDao
     abstract fun categoryBudgetDao(): CategoryBudgetDao
     abstract fun accountNicknameDao(): AccountNicknameDao
+    abstract fun splitDao(): SplitDao
 
     companion object {
         @Volatile
@@ -150,7 +200,10 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "dhanapala.db"
                 )
-                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(
+                        MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
+                        MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
+                    )
                     // Safety net only for schema jumps with no migration path
                     // (e.g. very old pre-release installs) — real installs from
                     // here on go through explicit migrations so data survives.

@@ -30,9 +30,17 @@ import java.time.ZoneId
 import kotlin.math.roundToInt
 
 private val BackgroundColor = Color(0xFF0B0C0F)
-private val AccentColor = Color(0xFF00E5A0)
+private val GreenColor = Color(0xFF00E5A0)
+private val AmberColor = Color(0xFFFFC857)
 private val ErrorColor = Color(0xFFFF5C5C)
 private val MutedColor = Color(0xFFB0B0B0)
+
+/** Green under 60% used, amber 60-90%, red past that — same tiers as the Broke-o-Meter gauge. */
+private fun accentColorFor(percentUsed: Double): Color = when {
+    percentUsed >= 90 -> ErrorColor
+    percentUsed >= 60 -> AmberColor
+    else -> GreenColor
+}
 
 /** Glanceable remaining-budget + % used, tap to open the app. Read-only, no interactive add-transaction. */
 class DhanpalWidget : GlanceAppWidget() {
@@ -52,6 +60,7 @@ class DhanpalWidget : GlanceAppWidget() {
         }
 
         val openAppIntent = Intent(context, MainActivity::class.java)
+        val accentColor = accentColorFor(summary.percentUsed)
         provideContent {
             Column(
                 modifier = GlanceModifier
@@ -62,7 +71,7 @@ class DhanpalWidget : GlanceAppWidget() {
             ) {
                 Text(
                     "Dhanpal",
-                    style = TextStyle(color = ColorProvider(AccentColor), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    style = TextStyle(color = ColorProvider(accentColor), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 )
                 Text(
                     "Remaining",
@@ -71,7 +80,7 @@ class DhanpalWidget : GlanceAppWidget() {
                 Text(
                     CurrencyFormat.rupees(summary.remaining),
                     style = TextStyle(
-                        color = ColorProvider(if (summary.remaining < 0) ErrorColor else AccentColor),
+                        color = ColorProvider(if (summary.remaining < 0) ErrorColor else accentColor),
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )

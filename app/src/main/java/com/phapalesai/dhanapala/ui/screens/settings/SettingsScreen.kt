@@ -60,7 +60,10 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(),
     onViewRawSms: () -> Unit = {},
     onSplitBill: () -> Unit = {},
-    onManageAccounts: () -> Unit = {}
+    onManageAccounts: () -> Unit = {},
+    onOpenChat: () -> Unit = {},
+    onOpenTimeMachine: () -> Unit = {},
+    onOpenSplitGroups: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -178,6 +181,18 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.error
                         )
                     }
+                    SettingToggleRow(
+                        label = "🔊 Voice Roasts",
+                        checked = settings.voiceRoastsEnabled,
+                        onCheckedChange = { viewModel.updateSettings { s -> s.copy(voiceRoastsEnabled = it) } }
+                    )
+                    if (settings.voiceRoastsEnabled) {
+                        Text(
+                            "Reads the Bhai Meter message aloud when you open the app. On-device only.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
@@ -228,6 +243,9 @@ fun SettingsScreen(
                     Text("Tools", style = MaterialTheme.typography.titleMedium)
                     OutlinedButton(onClick = onSplitBill, modifier = Modifier.fillMaxWidth()) { Text("🧾 Split a Bill") }
                     OutlinedButton(onClick = onManageAccounts, modifier = Modifier.fillMaxWidth()) { Text("🏦 Manage Accounts") }
+                    OutlinedButton(onClick = onOpenChat, modifier = Modifier.fillMaxWidth()) { Text("💬 Chat with Dhanpal") }
+                    OutlinedButton(onClick = onOpenTimeMachine, modifier = Modifier.fillMaxWidth()) { Text("⏳ Time Machine") }
+                    OutlinedButton(onClick = onOpenSplitGroups, modifier = Modifier.fillMaxWidth()) { Text("🤝 Split Groups") }
                 }
             }
 

@@ -13,5 +13,11 @@ data class AppSettingsEntity(
     val roastLevel: String = "MEDIUM",
     val roastLanguage: String = "HI",
     val userName: String = "",
-    val biometricLockEnabled: Boolean = false
+    val biometricLockEnabled: Boolean = false,
+    /** How many times the user backed out of the Panic Button cooldown instead of proceeding. */
+    val impulsesAvoided: Int = 0,
+    /** Id of the last past budget period the month-end celebration overlay was already shown for. */
+    val lastCelebratedBudgetId: Long = 0,
+    /** Reads the Bhai Meter message aloud (on-device TTS) when it changes. Off by default — audio should be opt-in. */
+    val voiceRoastsEnabled: Boolean = false
 )

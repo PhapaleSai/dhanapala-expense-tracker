@@ -23,6 +23,9 @@ interface BudgetDao {
     @Query("UPDATE budgets SET notifiedExceeded = :value WHERE id = :id")
     suspend fun setNotifiedExceeded(id: Long, value: Boolean)
 
+    @Query("SELECT * FROM budgets WHERE endDateMillis < :nowMillis ORDER BY endDateMillis DESC LIMIT 1")
+    suspend fun getMostRecentlyEndedOnce(nowMillis: Long): BudgetEntity?
+
     @Query("SELECT * FROM budgets")
     suspend fun getAll(): List<BudgetEntity>
 

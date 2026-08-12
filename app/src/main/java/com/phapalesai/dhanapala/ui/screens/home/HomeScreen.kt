@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -24,10 +25,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -72,16 +79,30 @@ import com.phapalesai.dhanapala.ui.categoryEmoji
 import com.phapalesai.dhanapala.ui.theme.DhanapalaGold
 import com.phapalesai.dhanapala.util.CurrencyFormat
 import com.phapalesai.dhanapala.util.Greeting
+import com.phapalesai.dhanapala.util.rememberBhaiVoice
+import com.phapalesai.dhanapala.domain.roastLanguageEnum
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> Unit = {}) {
+fun HomeScreen(
+    viewModel: HomeViewModel = viewModel(),
+    onAddTransaction: () -> Unit = {},
+    onPanicButton: () -> Unit = {}
+) {
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val bhaiVoice = rememberBhaiVoice()
+    LaunchedEffect(state.bhaiMessage, state.settings.voiceRoastsEnabled) {
+        if (state.settings.voiceRoastsEnabled && state.bhaiMessage != null) {
+            bhaiVoice.speak(state.bhaiMessage!!, state.settings.roastLanguageEnum)
+        }
+    }
 
     var hasPermission by remember {
         mutableStateOf(
@@ -195,7 +216,8 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
                 ActionTilesRow(
                     hasPermission = hasPermission,
                     onScan = { if (hasPermission) viewModel.scanSms() else requestSmsPermissions() },
-                    onAddTransaction = onAddTransaction
+                    onAddTransaction = onAddTransaction,
+                    onPanicButton = onPanicButton
                 )
             }
 
@@ -221,6 +243,16 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
                 }
             }
 
+            if (state.badges.isNotEmpty()) {
+                EnterAnimated(delayMillis = 165) { BadgesCard(state.badges) }
+            }
+
+            if (state.ghostMemory != null) {
+                EnterAnimated(delayMillis = 175) { GhostMemoryCard(state.ghostMemory!!) }
+            }
+
+            EnterAnimated(delayMillis = 185) { MoneyHoroscopeCard(state.moneyHoroscope) }
+
             EnterAnimated(delayMillis = 190) { MoneyJokeCard(state.moneyJoke) }
 
             EnterAnimated(delayMillis = 230) { BhaiMeterCard(state.bhaiMessage) }
@@ -238,6 +270,13 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(), onAddTransaction: () -> U
             }
 
             EnterAnimated(delayMillis = 350) { RecentTransactionsCard(state.recentTransactions) }
+        }
+
+        if (state.celebration != null) {
+            PeriodEndCelebrationOverlay(
+                celebration = state.celebration!!,
+                onDismiss = viewModel::dismissCelebration
+            )
         }
         }
     }
@@ -292,7 +331,12 @@ private fun GlowCard(
 }
 
 @Composable
-private fun ActionTilesRow(hasPermission: Boolean, onScan: () -> Unit, onAddTransaction: () -> Unit) {
+private fun ActionTilesRow(
+    hasPermission: Boolean,
+    onScan: () -> Unit,
+    onAddTransaction: () -> Unit,
+    onPanicButton: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -305,10 +349,18 @@ private fun ActionTilesRow(hasPermission: Boolean, onScan: () -> Unit, onAddTran
             modifier = Modifier.weight(1f)
         )
         ActionTile(
-            label = "Add Transaction",
+            label = "Add",
             icon = null,
             colors = listOf(Color(0xFFB8860B), Color(0xFFFFC857)),
             onClick = onAddTransaction,
+            modifier = Modifier.weight(1f)
+        )
+        ActionTile(
+            label = "Panic",
+            icon = null,
+            emoji = "🚨",
+            colors = listOf(Color(0xFFB33939), Color(0xFFFF5A5F)),
+            onClick = onPanicButton,
             modifier = Modifier.weight(1f)
         )
     }
@@ -320,7 +372,8 @@ private fun ActionTile(
     icon: androidx.compose.ui.graphics.vector.ImageVector?,
     colors: List<Color>,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    emoji: String? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -339,10 +392,10 @@ private fun ActionTile(
             verticalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier.fillMaxSize()
         ) {
-            if (icon != null) {
-                Icon(icon, contentDescription = null, tint = Color(0xFF06110C))
-            } else {
-                Text("+", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color(0xFF06110C))
+            when {
+                icon != null -> Icon(icon, contentDescription = null, tint = Color(0xFF06110C))
+                emoji != null -> Text(emoji, style = MaterialTheme.typography.titleLarge)
+                else -> Text("+", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color(0xFF06110C))
             }
             Text(
                 text = label,
@@ -780,6 +833,126 @@ private fun AddCategoryBudgetDialog(onDismiss: () -> Unit, onSave: (String, Doub
             androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+@Composable
+private fun BadgesCard(badges: List<com.phapalesai.dhanapala.domain.Badge>) {
+    GlowCard(glowColor = Color(0xFFFFD700)) {
+        Text("🏅 Streaks & Badges", style = MaterialTheme.typography.titleMedium)
+        badges.forEach { badge ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(badge.emoji, style = MaterialTheme.typography.headlineSmall)
+                Column {
+                    Text(badge.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        badge.subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GhostMemoryCard(memory: GhostMemory) {
+    GlowCard(glowColor = Color(0xFF9575CD)) {
+        Text("👻 Ghost of Purchases Past", style = MaterialTheme.typography.titleMedium)
+        val formatter = remember { java.time.format.DateTimeFormatter.ofPattern("d MMM") }
+        val categoryText = memory.category?.let { " on $it" } ?: ""
+        Text(
+            "On ${memory.date.format(formatter)} last month, you spent ${CurrencyFormat.rupees(memory.amount)}$categoryText.",
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+
+@Composable
+private fun ConfettiField() {
+    val emojis = listOf("🎉", "🎊", "💸", "✨", "🥳")
+    val particles = remember {
+        List(24) { Triple(Random.nextFloat(), Random.nextInt(emojis.size), Random.nextInt(1400, 2600)) }
+    }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val heightPx = constraints.maxHeight.toFloat()
+        particles.forEach { (xFraction, emojiIndex, durationMs) ->
+            val infiniteTransition = rememberInfiniteTransition(label = "confetti")
+            val progress by infiniteTransition.animateFloat(
+                initialValue = -0.15f,
+                targetValue = 1.15f,
+                animationSpec = infiniteRepeatable(tween(durationMs, easing = LinearEasing)),
+                label = "confettiFall"
+            )
+            Text(
+                text = emojis[emojiIndex],
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier
+                    .align(BiasAlignment(horizontalBias = xFraction * 2f - 1f, verticalBias = -1f))
+                    .graphicsLayer { translationY = progress * heightPx }
+            )
+        }
+    }
+}
+
+@Composable
+private fun PeriodEndCelebrationOverlay(celebration: CelebrationState, onDismiss: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.78f))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
+        contentAlignment = Alignment.Center
+    ) {
+        if (celebration.wasUnderBudget) {
+            ConfettiField()
+        } else {
+            Text(
+                text = "🎈",
+                style = MaterialTheme.typography.displayLarge,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 60.dp)
+            )
+        }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Text(
+                text = if (celebration.wasUnderBudget) "🎉 You crushed it!" else "😔 That budget didn't survive",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = androidx.compose.ui.graphics.Color.White
+            )
+            Text(
+                text = if (celebration.wasUnderBudget) {
+                    "Finished ${CurrencyFormat.rupees(celebration.amountOverOrUnder)} under budget last period."
+                } else {
+                    "Went ${CurrencyFormat.rupees(celebration.amountOverOrUnder)} over last period."
+                },
+                style = MaterialTheme.typography.bodyLarge,
+                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f)
+            )
+            Text(
+                "Tap anywhere to dismiss",
+                style = MaterialTheme.typography.labelSmall,
+                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MoneyHoroscopeCard(horoscope: String?) {
+    if (horoscope == null) return
+    GlowCard(glowColor = Color(0xFFBA68C8)) {
+        Text("🔮 Money Horoscope", style = MaterialTheme.typography.titleMedium)
+        Text(text = horoscope, style = MaterialTheme.typography.bodyMedium)
+    }
 }
 
 @Composable
