@@ -19,6 +19,12 @@ interface SplitDao {
     @Query("SELECT * FROM split_expenses WHERE groupId = :groupId ORDER BY createdAt DESC")
     fun observeExpenses(groupId: Long): Flow<List<SplitExpenseEntity>>
 
+    @Query("DELETE FROM split_groups WHERE id = :groupId")
+    suspend fun deleteGroup(groupId: Long)
+
+    @Query("DELETE FROM split_expenses WHERE groupId = :groupId")
+    suspend fun deleteExpensesForGroup(groupId: Long)
+
     @Query("DELETE FROM split_groups")
     suspend fun deleteAllGroups()
 

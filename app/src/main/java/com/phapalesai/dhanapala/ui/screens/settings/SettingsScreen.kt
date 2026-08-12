@@ -61,7 +61,6 @@ fun SettingsScreen(
     onViewRawSms: () -> Unit = {},
     onSplitBill: () -> Unit = {},
     onManageAccounts: () -> Unit = {},
-    onOpenChat: () -> Unit = {},
     onOpenTimeMachine: () -> Unit = {},
     onOpenSplitGroups: () -> Unit = {}
 ) {
@@ -243,7 +242,6 @@ fun SettingsScreen(
                     Text("Tools", style = MaterialTheme.typography.titleMedium)
                     OutlinedButton(onClick = onSplitBill, modifier = Modifier.fillMaxWidth()) { Text("🧾 Split a Bill") }
                     OutlinedButton(onClick = onManageAccounts, modifier = Modifier.fillMaxWidth()) { Text("🏦 Manage Accounts") }
-                    OutlinedButton(onClick = onOpenChat, modifier = Modifier.fillMaxWidth()) { Text("💬 Chat with Dhanpal") }
                     OutlinedButton(onClick = onOpenTimeMachine, modifier = Modifier.fillMaxWidth()) { Text("⏳ Time Machine") }
                     OutlinedButton(onClick = onOpenSplitGroups, modifier = Modifier.fillMaxWidth()) { Text("🤝 Split Groups") }
                 }

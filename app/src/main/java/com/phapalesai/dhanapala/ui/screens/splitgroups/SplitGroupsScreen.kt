@@ -15,6 +15,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -22,11 +23,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,6 +46,7 @@ fun SplitGroupsScreen(viewModel: SplitGroupsViewModel = viewModel()) {
     val detail by viewModel.selectedGroupDetail.collectAsStateWithLifecycle()
     var showCreateDialog by remember { mutableStateOf(false) }
     var showAddExpenseDialog by remember { mutableStateOf(false) }
+    var groupPendingDelete by remember { mutableStateOf<SplitGroupEntity?>(null) }
 
     Scaffold(
         floatingActionButton = {
@@ -74,7 +78,13 @@ fun SplitGroupsScreen(viewModel: SplitGroupsViewModel = viewModel()) {
                 if (groups.isEmpty()) {
                     Text("No groups yet. Tap + to start one.", style = MaterialTheme.typography.bodyMedium)
                 } else {
-                    groups.forEach { group -> GroupRow(group, onClick = { viewModel.selectGroup(group.id) }) }
+                    groups.forEach { group ->
+                        GroupRow(
+                            group,
+                            onClick = { viewModel.selectGroup(group.id) },
+                            onDelete = { groupPendingDelete = group }
+                        )
+                    }
                 }
             } else {
                 detail?.let { d ->
@@ -97,6 +107,23 @@ fun SplitGroupsScreen(viewModel: SplitGroupsViewModel = viewModel()) {
         )
     }
 
+    groupPendingDelete?.let { group ->
+        AlertDialog(
+            onDismissRequest = { groupPendingDelete = null },
+            title = { Text("Delete \"${group.name}\"?") },
+            text = { Text("This removes the group and every expense logged in it. This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteGroup(group.id)
+                    groupPendingDelete = null
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { groupPendingDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
+
     if (showAddExpenseDialog) {
         detail?.let { d ->
             val participants = d.group.participants.split(",").filter { it.isNotBlank() }
@@ -113,15 +140,24 @@ fun SplitGroupsScreen(viewModel: SplitGroupsViewModel = viewModel()) {
 }
 
 @Composable
-private fun GroupRow(group: SplitGroupEntity, onClick: () -> Unit) {
+private fun GroupRow(group: SplitGroupEntity, onClick: () -> Unit, onDelete: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(group.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(
-                group.participants.split(",").filter { it.isNotBlank() }.joinToString(", "),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(group.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    group.participants.split(",").filter { it.isNotBlank() }.joinToString(", "),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Filled.Delete, contentDescription = "Delete ${group.name}", tint = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
@@ -62,6 +63,7 @@ private val bottomTabs = listOf(
     BottomTab(Routes.HOME, "Home", Icons.Filled.Home),
     BottomTab(Routes.TRANSACTIONS, "Transactions", Icons.Filled.ReceiptLong),
     BottomTab(Routes.ANALYTICS, "Analytics", Icons.Filled.BarChart),
+    BottomTab(Routes.DHANPAL_CHAT, "Chat", Icons.Filled.Chat),
     BottomTab(Routes.SETTINGS, "Settings", Icons.Filled.Settings)
 )
 
@@ -125,7 +127,6 @@ fun DhanapalaNavHost() {
                     onViewRawSms = { navController.navigate(Routes.MESSAGES) },
                     onSplitBill = { navController.navigate(Routes.SPLIT_CALCULATOR) },
                     onManageAccounts = { navController.navigate(Routes.ACCOUNTS) },
-                    onOpenChat = { navController.navigate(Routes.DHANPAL_CHAT) },
                     onOpenTimeMachine = { navController.navigate(Routes.TIME_MACHINE) },
                     onOpenSplitGroups = { navController.navigate(Routes.SPLIT_GROUPS) }
                 )

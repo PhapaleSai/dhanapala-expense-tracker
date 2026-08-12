@@ -63,6 +63,11 @@ class SplitGroupsViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch { repo.addExpense(groupId, description.trim(), amount, paidBy, splitAmong) }
     }
 
+    fun deleteGroup(groupId: Long) {
+        if (_selectedGroupId.value == groupId) _selectedGroupId.value = null
+        viewModelScope.launch { repo.deleteGroup(groupId) }
+    }
+
     private fun computeBalances(participants: List<String>, expenses: List<SplitExpenseEntity>): Map<String, Double> {
         val balances = participants.associateWith { 0.0 }.toMutableMap()
         for (expense in expenses) {

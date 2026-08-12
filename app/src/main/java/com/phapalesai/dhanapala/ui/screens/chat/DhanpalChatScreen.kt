@@ -32,15 +32,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.phapalesai.dhanapala.domain.roastLanguageEnum
+import com.phapalesai.dhanapala.util.rememberBhaiVoice
 
 @Composable
 fun DhanpalChatScreen(viewModel: DhanpalChatViewModel = viewModel()) {
     val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val bhaiVoice = rememberBhaiVoice()
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+        val last = messages.lastOrNull()
+        if (last != null && !last.isUser && settings.voiceRoastsEnabled) {
+            bhaiVoice.speak(last.text, settings.roastLanguageEnum)
+        }
     }
 
     Scaffold { innerPadding ->

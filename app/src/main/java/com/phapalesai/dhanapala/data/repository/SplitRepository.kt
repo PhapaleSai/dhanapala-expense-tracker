@@ -31,4 +31,9 @@ class SplitRepository(private val dao: SplitDao) {
                 createdAt = System.currentTimeMillis()
             )
         )
+
+    suspend fun deleteGroup(groupId: Long) {
+        dao.deleteExpensesForGroup(groupId)
+        dao.deleteGroup(groupId)
+    }
 }

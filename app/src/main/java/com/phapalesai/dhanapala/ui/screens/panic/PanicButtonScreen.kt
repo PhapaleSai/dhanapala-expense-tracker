@@ -1,5 +1,7 @@
 package com.phapalesai.dhanapala.ui.screens.panic
 
+import android.media.AudioManager
+import android.media.ToneGenerator
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -34,10 +36,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.phapalesai.dhanapala.domain.BhaiMessageEngine
+import com.phapalesai.dhanapala.domain.MoneyJokes
 import com.phapalesai.dhanapala.domain.roastLanguageEnum
 import com.phapalesai.dhanapala.ui.screens.quickbudget.QuickBudgetViewModel
 import com.phapalesai.dhanapala.ui.theme.DhanapalaGold
 import com.phapalesai.dhanapala.util.CurrencyFormat
+import com.phapalesai.dhanapala.util.rememberBhaiVoice
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -57,6 +61,25 @@ fun PanicButtonScreen(viewModel: QuickBudgetViewModel = viewModel(), onDone: () 
             language = settings.roastLanguageEnum,
             random = Random(System.currentTimeMillis())
         )
+    }
+    val budgetJoke = remember(settings.roastLanguage) {
+        MoneyJokes.random(settings.roastLanguageEnum, Random(System.currentTimeMillis()))
+    }
+    val bhaiVoice = rememberBhaiVoice()
+
+    // Siren burst the moment the screen opens — plain built-in tone, no audio asset needed.
+    LaunchedEffect(Unit) {
+        val toneGen = runCatching { ToneGenerator(AudioManager.STREAM_MUSIC, 90) }.getOrNull()
+        if (toneGen != null) {
+            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 1500)
+            delay(1600)
+            toneGen.release()
+        }
+    }
+
+    // Speaks one budget-themed joke aloud, same opt-in toggle as the Home screen's voice roasts.
+    LaunchedEffect(settings.voiceRoastsEnabled) {
+        if (settings.voiceRoastsEnabled) bhaiVoice.speak(budgetJoke, settings.roastLanguageEnum)
     }
 
     LaunchedEffect(Unit) {

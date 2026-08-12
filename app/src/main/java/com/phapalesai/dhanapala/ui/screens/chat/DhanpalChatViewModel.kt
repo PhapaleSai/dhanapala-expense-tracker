@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.phapalesai.dhanapala.DhanapalaApplication
+import com.phapalesai.dhanapala.data.local.AppSettingsEntity
 import com.phapalesai.dhanapala.domain.DhanpalChatEngine
 import com.phapalesai.dhanapala.domain.roastLanguageEnum
 import com.phapalesai.dhanapala.util.DateUtils
@@ -35,6 +36,12 @@ class DhanpalChatViewModel(application: Application) : AndroidViewModel(applicat
     )
     val messages: StateFlow<List<ChatMessage>> = _messages
 
+    val settings: StateFlow<AppSettingsEntity> = budgetRepo.observeSettings()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettingsEntity())
+
+    // Eagerly (not WhileSubscribed) because the UI only collects `messages`, never
+    // `remaining` directly — with WhileSubscribed this would never start collecting
+    // and `.value` would stay stuck at the 0.0 seed forever.
     private val remaining: StateFlow<Double> = budgetRepo.observeActive(System.currentTimeMillis())
         .flatMapLatest { budget ->
             val range = budget?.let { it.startDateMillis to it.endDateMillis }
@@ -47,7 +54,7 @@ class DhanpalChatViewModel(application: Application) : AndroidViewModel(applicat
                 (budget?.amount ?: 0.0) - spent
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0.0)
 
     fun sendMessage(text: String) {
         if (text.isBlank()) return
