@@ -19,5 +19,7 @@ data class AppSettingsEntity(
     /** Id of the last past budget period the month-end celebration overlay was already shown for. */
     val lastCelebratedBudgetId: Long = 0,
     /** Reads the Bhai Meter message aloud (on-device TTS) when it changes. Off by default — audio should be opt-in. */
-    val voiceRoastsEnabled: Boolean = false
+    val voiceRoastsEnabled: Boolean = false,
+    /** Full-screen incoming-call-style alert when the budget is exceeded. Off by default — quite intrusive. */
+    val bhaiCallEnabled: Boolean = false
 )

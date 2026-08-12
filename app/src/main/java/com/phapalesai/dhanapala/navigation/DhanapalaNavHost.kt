@@ -40,6 +40,7 @@ import com.phapalesai.dhanapala.ui.screens.split.SplitCalculatorScreen
 import com.phapalesai.dhanapala.ui.screens.splitgroups.SplitGroupsScreen
 import com.phapalesai.dhanapala.ui.screens.timemachine.TimeMachineScreen
 import com.phapalesai.dhanapala.ui.screens.transactions.TransactionsScreen
+import com.phapalesai.dhanapala.ui.screens.wrapped.WrappedScreen
 import com.phapalesai.dhanapala.util.ShakeDetector
 
 object Routes {
@@ -55,6 +56,7 @@ object Routes {
     const val DHANPAL_CHAT = "dhanpal_chat"
     const val TIME_MACHINE = "time_machine"
     const val SPLIT_GROUPS = "split_groups"
+    const val WRAPPED = "wrapped"
 }
 
 private data class BottomTab(val route: String, val label: String, val icon: ImageVector)
@@ -128,7 +130,8 @@ fun DhanapalaNavHost() {
                     onSplitBill = { navController.navigate(Routes.SPLIT_CALCULATOR) },
                     onManageAccounts = { navController.navigate(Routes.ACCOUNTS) },
                     onOpenTimeMachine = { navController.navigate(Routes.TIME_MACHINE) },
-                    onOpenSplitGroups = { navController.navigate(Routes.SPLIT_GROUPS) }
+                    onOpenSplitGroups = { navController.navigate(Routes.SPLIT_GROUPS) },
+                    onOpenWrapped = { navController.navigate(Routes.WRAPPED) }
                 )
             }
             composable(Routes.MESSAGES) { MessagesScreen() }
@@ -139,6 +142,7 @@ fun DhanapalaNavHost() {
             composable(Routes.DHANPAL_CHAT) { DhanpalChatScreen() }
             composable(Routes.TIME_MACHINE) { TimeMachineScreen() }
             composable(Routes.SPLIT_GROUPS) { SplitGroupsScreen() }
+            composable(Routes.WRAPPED) { WrappedScreen() }
         }
     }
 }

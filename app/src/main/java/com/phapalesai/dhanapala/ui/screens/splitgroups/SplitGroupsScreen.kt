@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import android.content.Intent
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -17,6 +18,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -88,9 +91,17 @@ fun SplitGroupsScreen(viewModel: SplitGroupsViewModel = viewModel()) {
                 }
             } else {
                 detail?.let { d ->
+                    val context = LocalContext.current
                     GroupDetailView(
                         detail = d,
-                        onBack = { viewModel.selectGroup(null) }
+                        onBack = { viewModel.selectGroup(null) },
+                        onShare = {
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, buildShareText(d))
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Share settlement"))
+                        }
                     )
                 }
             }
@@ -162,11 +173,41 @@ private fun GroupRow(group: SplitGroupEntity, onClick: () -> Unit, onDelete: () 
     }
 }
 
+private fun buildShareText(detail: GroupDetail): String = buildString {
+    appendLine("💰 ${detail.group.name} — settlement summary")
+    appendLine()
+    appendLine("Balances:")
+    detail.balances.entries.sortedByDescending { it.value }.forEach { (name, balance) ->
+        val line = when {
+            balance > 0.01 -> "  $name gets back ${CurrencyFormat.rupees(balance)}"
+            balance < -0.01 -> "  $name owes ${CurrencyFormat.rupees(-balance)}"
+            else -> "  $name is settled up"
+        }
+        appendLine(line)
+    }
+    if (detail.settlements.isNotEmpty()) {
+        appendLine()
+        appendLine("Settle up:")
+        detail.settlements.forEach { payment ->
+            appendLine("  ${payment.from} → ${payment.to}: ${CurrencyFormat.rupees(payment.amount)}")
+        }
+    }
+    appendLine()
+    append("— via Dhanpal")
+}
+
 @Composable
-private fun GroupDetailView(detail: GroupDetail, onBack: () -> Unit) {
+private fun GroupDetailView(detail: GroupDetail, onBack: () -> Unit, onShare: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("← Back to groups", modifier = Modifier.clickable(onClick = onBack), style = MaterialTheme.typography.labelMedium)
-        Text(detail.group.name, style = MaterialTheme.typography.headlineMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(detail.group.name, style = MaterialTheme.typography.headlineMedium)
+            OutlinedButton(onClick = onShare) { Text("📤 Share") }
+        }
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -166,6 +166,13 @@ val MIGRATION_9_10 = object : androidx.room.migration.Migration(9, 10) {
     }
 }
 
+/** Adds the Bhai Call opt-in flag on app_settings. Additive, no data conversion needed. */
+val MIGRATION_10_11 = object : androidx.room.migration.Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE app_settings ADD COLUMN bhaiCallEnabled INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
     entities = [
         TransactionEntity::class,
@@ -176,7 +183,7 @@ val MIGRATION_9_10 = object : androidx.room.migration.Migration(9, 10) {
         SplitGroupEntity::class,
         SplitExpenseEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -202,7 +209,7 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
-                        MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
+                        MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11
                     )
                     // Safety net only for schema jumps with no migration path
                     // (e.g. very old pre-release installs) — real installs from

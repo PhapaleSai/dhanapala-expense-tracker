@@ -7,6 +7,7 @@ import com.phapalesai.dhanapala.DhanapalaApplication
 import com.phapalesai.dhanapala.data.local.TransactionEntity
 import com.phapalesai.dhanapala.data.local.TransactionType
 import com.phapalesai.dhanapala.data.repository.ScanResult
+import com.phapalesai.dhanapala.domain.AnomalyDetector
 import com.phapalesai.dhanapala.domain.BhaiMessageEngine
 import com.phapalesai.dhanapala.domain.BudgetCalculator
 import com.phapalesai.dhanapala.domain.MoneyHoroscope
@@ -171,6 +172,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             periodEnd = periodEnd,
             categoryBudgets = categoryBudgetProgress,
             badges = StreakCalculator.earnedBadges(extrasBundle.allTransactions),
+            anomalies = AnomalyDetector.detect(transactions, extrasBundle.allTransactions),
             ghostMemory = extrasBundle.ghostMemory,
             celebration = extrasBundle.celebration,
             impulsesAvoided = settings.impulsesAvoided

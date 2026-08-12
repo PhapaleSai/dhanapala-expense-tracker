@@ -62,7 +62,8 @@ fun SettingsScreen(
     onSplitBill: () -> Unit = {},
     onManageAccounts: () -> Unit = {},
     onOpenTimeMachine: () -> Unit = {},
-    onOpenSplitGroups: () -> Unit = {}
+    onOpenSplitGroups: () -> Unit = {},
+    onOpenWrapped: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -192,6 +193,18 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    SettingToggleRow(
+                        label = "📞 Bhai Call",
+                        checked = settings.bhaiCallEnabled,
+                        onCheckedChange = { viewModel.updateSettings { s -> s.copy(bhaiCallEnabled = it) } }
+                    )
+                    if (settings.bhaiCallEnabled) {
+                        Text(
+                            "Budget-exceeded alerts become a full-screen incoming-call-style screen instead of a normal notification.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
@@ -244,6 +257,7 @@ fun SettingsScreen(
                     OutlinedButton(onClick = onManageAccounts, modifier = Modifier.fillMaxWidth()) { Text("🏦 Manage Accounts") }
                     OutlinedButton(onClick = onOpenTimeMachine, modifier = Modifier.fillMaxWidth()) { Text("⏳ Time Machine") }
                     OutlinedButton(onClick = onOpenSplitGroups, modifier = Modifier.fillMaxWidth()) { Text("🤝 Split Groups") }
+                    OutlinedButton(onClick = onOpenWrapped, modifier = Modifier.fillMaxWidth()) { Text("🎁 Dhanpal Wrapped") }
                 }
             }
 

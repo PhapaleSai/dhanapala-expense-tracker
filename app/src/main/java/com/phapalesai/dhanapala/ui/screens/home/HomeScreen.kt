@@ -251,6 +251,10 @@ fun HomeScreen(
                 EnterAnimated(delayMillis = 175) { GhostMemoryCard(state.ghostMemory!!) }
             }
 
+            if (state.anomalies.isNotEmpty()) {
+                EnterAnimated(delayMillis = 178) { AnomaliesCard(state.anomalies) }
+            }
+
             EnterAnimated(delayMillis = 185) { MoneyHoroscopeCard(state.moneyHoroscope) }
 
             EnterAnimated(delayMillis = 190) { MoneyJokeCard(state.moneyJoke) }
@@ -869,6 +873,32 @@ private fun GhostMemoryCard(memory: GhostMemory) {
             "On ${memory.date.format(formatter)} last month, you spent ${CurrencyFormat.rupees(memory.amount)}$categoryText.",
             style = MaterialTheme.typography.bodyMedium
         )
+    }
+}
+
+@Composable
+private fun AnomaliesCard(anomalies: List<com.phapalesai.dhanapala.domain.Anomaly>) {
+    GlowCard(glowColor = Color(0xFFFF7043)) {
+        Text("🔍 Looks Unusual", style = MaterialTheme.typography.titleMedium)
+        anomalies.take(3).forEach { anomaly ->
+            val tx = anomaly.transaction
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("${categoryEmoji(tx.category)} ${tx.category}", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        CurrencyFormat.rupees(tx.amount),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                Text(
+                    "${String.format("%.1f", anomaly.multiplier)}x your usual ${CurrencyFormat.rupees(anomaly.categoryAverage)} for ${tx.category}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 

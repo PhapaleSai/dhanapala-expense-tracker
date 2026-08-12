@@ -5,6 +5,14 @@
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Only used to hand voice input in Dhanpal Chat off to the system speech
+         recognizer via an implicit intent — audio never leaves the device
+         through this app's own code. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Opt-in (Settings > Bhai Call, off by default): lets the budget-exceeded
+         alert launch as a full-screen incoming-call-style screen instead of a
+         normal notification. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <!-- No CAMERA permission needed: receipt scanning hands off to the
          device's own camera app via an implicit intent and only receives
@@ -12,6 +20,9 @@
     <queries>
         <intent>
             <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
         </intent>
     </queries>
 
@@ -33,6 +44,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Standalone incoming-call-style screen for The Bhai Call, launched via a
+             full-screen notification intent. singleInstance + excludeFromRecents so
+             it behaves like a real call screen, not a regular app window. -->
+        <activity
+            android:name=".ui.call.BhaiCallActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Dhanapala" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

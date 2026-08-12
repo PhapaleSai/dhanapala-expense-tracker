@@ -3,6 +3,7 @@ package com.phapalesai.dhanapala.ui.screens.home
 import com.phapalesai.dhanapala.data.local.AppSettingsEntity
 import com.phapalesai.dhanapala.data.local.TransactionEntity
 import com.phapalesai.dhanapala.data.repository.ScanResult
+import com.phapalesai.dhanapala.domain.Anomaly
 import com.phapalesai.dhanapala.domain.Badge
 import com.phapalesai.dhanapala.domain.BudgetCalculator
 import com.phapalesai.dhanapala.domain.BudgetSummary
@@ -38,6 +39,7 @@ data class HomeUiState(
     val periodEnd: LocalDate? = null,
     val categoryBudgets: List<CategoryBudgetProgress> = emptyList(),
     val badges: List<Badge> = emptyList(),
+    val anomalies: List<Anomaly> = emptyList(),
     val ghostMemory: GhostMemory? = null,
     val celebration: CelebrationState? = null,
     val impulsesAvoided: Int = 0

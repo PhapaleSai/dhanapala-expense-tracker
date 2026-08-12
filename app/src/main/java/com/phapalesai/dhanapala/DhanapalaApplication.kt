@@ -9,6 +9,7 @@ import com.phapalesai.dhanapala.data.repository.CategoryBudgetRepository
 import com.phapalesai.dhanapala.data.repository.SplitRepository
 import com.phapalesai.dhanapala.data.repository.TransactionRepository
 import com.phapalesai.dhanapala.data.sms.SmsReader
+import com.phapalesai.dhanapala.notification.BhaiCallNotifier
 import com.phapalesai.dhanapala.notification.DhanapalaNotifier
 import com.phapalesai.dhanapala.notification.TransactionAlertService
 
@@ -21,8 +22,9 @@ class DhanapalaApplication : Application() {
     val splitRepository by lazy { SplitRepository(database.splitDao()) }
     val smsReader by lazy { SmsReader(this) }
     val notifier by lazy { DhanapalaNotifier(this) }
+    val bhaiCallNotifier by lazy { BhaiCallNotifier(this) }
     val transactionAlertService by lazy {
-        TransactionAlertService(this, transactionRepository, budgetRepository, categoryBudgetRepository, notifier)
+        TransactionAlertService(this, transactionRepository, budgetRepository, categoryBudgetRepository, notifier, bhaiCallNotifier)
     }
     val backupManager by lazy {
         BackupManager(transactionRepository, budgetRepository, categoryBudgetRepository, accountNicknameRepository)

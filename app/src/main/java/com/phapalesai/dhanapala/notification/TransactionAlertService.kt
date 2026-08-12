@@ -29,7 +29,8 @@ class TransactionAlertService(
     private val transactionRepo: TransactionRepository,
     private val budgetRepo: BudgetRepository,
     private val categoryBudgetRepo: CategoryBudgetRepository,
-    private val notifier: DhanapalaNotifier
+    private val notifier: DhanapalaNotifier,
+    private val bhaiCallNotifier: BhaiCallNotifier
 ) {
     private val zone = ZoneId.systemDefault()
 
@@ -73,7 +74,7 @@ class TransactionAlertService(
         )
         when (tier) {
             BudgetNotifyTier.EXCEEDED -> {
-                notifier.notifyBudgetExceeded()
+                if (settings.bhaiCallEnabled) bhaiCallNotifier.triggerCall() else notifier.notifyBudgetExceeded()
                 budgetRepo.markNotifiedExceeded(budgetEntity.id)
             }
             BudgetNotifyTier.EIGHTY_PERCENT -> {
